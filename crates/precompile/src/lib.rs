@@ -1,7 +1,6 @@
-#![no_std]
-
 mod blake2;
 mod bn128;
+mod fhe;
 mod hash;
 mod identity;
 mod modexp;
@@ -175,7 +174,20 @@ impl Precompiles {
     }
 
     pub fn latest() -> &'static Self {
-        Self::berlin()
+        static INSTANCE: OnceCell<Precompiles> = OnceCell::new();
+        INSTANCE.get_or_init(|| {
+            let mut precompiles = Self::berlin().clone();
+            precompiles.fun.extend(
+                vec![
+                    // EIP-2565: ModExp Gas Cost.
+                    fhe::FHE_ADD,
+                    fhe::FHE_MULTIPLY,
+                ]
+                .into_iter()
+                .map(From::from),
+            );
+            precompiles
+        })
     }
 
     pub fn new(spec: SpecId) -> &'static Self {
