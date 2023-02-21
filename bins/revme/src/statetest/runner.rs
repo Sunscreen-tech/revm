@@ -1,29 +1,26 @@
-use std::io::stdout;
 use std::{
     collections::HashMap,
     ffi::OsStr,
     path::{Path, PathBuf},
+    str::FromStr,
     sync::{atomic::AtomicBool, Arc, Mutex},
     time::{Duration, Instant},
 };
 
-use indicatif::ProgressBar;
+use sha3::{Digest, Keccak256};
 
-use revm::inspectors::TracerEip3155;
-use revm::{
-    db::AccountState,
-    interpreter::CreateScheme,
-    primitives::{Bytecode, Env, ExecutionResult, SpecId, TransactTo, B160, B256, U256},
-};
+use indicatif::ProgressBar;
+use primitive_types::{H160, H256};
+use revm::{db::AccountState, Bytecode, CreateScheme, Env, ExecutionResult, SpecId, TransactTo};
+use ruint::aliases::U256;
 use std::sync::atomic::Ordering;
 use walkdir::{DirEntry, WalkDir};
 
 use super::{
     merkle_trie::{log_rlp_hash, state_merkle_trie_root},
     models::{SpecName, TestSuit},
+    trace::CustomPrintTracer,
 };
-use hex_literal::hex;
-use revm::primitives::keccak256;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -32,15 +29,15 @@ pub enum TestError {
     RootMissmatch {
         spec_id: SpecId,
         id: usize,
-        got: B256,
-        expect: B256,
+        got: H256,
+        expect: H256,
     },
     #[error("Serde json error")]
     SerdeDeserialize(#[from] serde_json::Error),
     #[error("Internal system error")]
     SystemError,
     #[error("Unknown private key: {private_key:?}")]
-    UnknownPrivateKey { private_key: B256 },
+    UnknownPrivateKey { private_key: H256 },
 }
 
 pub fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
@@ -52,11 +49,7 @@ pub fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
         .collect::<Vec<PathBuf>>()
 }
 
-pub fn execute_test_suit(
-    path: &Path,
-    elapsed: &Arc<Mutex<Duration>>,
-    trace: bool,
-) -> Result<(), TestError> {
+pub fn execute_test_suit(path: &Path, elapsed: &Arc<Mutex<Duration>>) -> Result<(), TestError> {
     // funky test with `bigint 0x00` value in json :) not possible to happen on mainnet and require custom json parser.
     // https://github.com/ethereum/tests/issues/971
     if path.file_name() == Some(OsStr::new("ValueOverflow.json")) {
@@ -69,11 +62,6 @@ pub fn execute_test_suit(
     // Test checks if nonce overflows. We are handling this correctly but we are not parsing exception in testsuite
     // There are more nonce overflow tests that are in internal call/create, and those tests are passing and are enabled.
     if path.file_name() == Some(OsStr::new("CreateTransactionHighNonce.json")) {
-        return Ok(());
-    }
-
-    // Need to handle Test errors
-    if path.file_name() == Some(OsStr::new("transactionIntinsicBug.json")) {
         return Ok(());
     }
 
@@ -103,49 +91,39 @@ pub fn execute_test_suit(
         return Ok(());
     }
 
-    if path.to_str().unwrap().contains("stEOF") {
-        return Ok(());
-    }
-
     let json_reader = std::fs::read(path).unwrap();
     let suit: TestSuit = serde_json::from_reader(&*json_reader)?;
 
     let map_caller_keys: HashMap<_, _> = vec![
         (
-            B256(hex!(
-                "45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8"
-            )),
-            B160(hex!("a94f5374fce5edbc8e2a8697c15331677e6ebf0b")),
+            H256::from_str("0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8")
+                .unwrap(),
+            H160::from_str("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap(),
         ),
         (
-            B256(hex!(
-                "c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4"
-            )),
-            B160(hex!("cd2a3d9f938e13cd947ec05abc7fe734df8dd826")),
+            H256::from_str("0xc85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4")
+                .unwrap(),
+            H160::from_str("0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826").unwrap(),
         ),
         (
-            B256(hex!(
-                "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d"
-            )),
-            B160(hex!("82a978b3f5962a5b0957d9ee9eef472ee55b42f1")),
+            H256::from_str("0x044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d")
+                .unwrap(),
+            H160::from_str("0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap(),
         ),
         (
-            B256(hex!(
-                "6a7eeac5f12b409d42028f66b0b2132535ee158cfda439e3bfdd4558e8f4bf6c"
-            )),
-            B160(hex!("c9c5a15a403e41498b6f69f6f89dd9f5892d21f7")),
+            H256::from_str("0x6a7eeac5f12b409d42028f66b0b2132535ee158cfda439e3bfdd4558e8f4bf6c")
+                .unwrap(),
+            H160::from_str("0xc9c5a15a403e41498b6f69f6f89dd9f5892d21f7").unwrap(),
         ),
         (
-            B256(hex!(
-                "a95defe70ebea7804f9c3be42d20d24375e2a92b9d9666b832069c5f3cd423dd"
-            )),
-            B160(hex!("3fb1cd2cd96c6d5c0b5eb3322d807b34482481d4")),
+            H256::from_str("0xa95defe70ebea7804f9c3be42d20d24375e2a92b9d9666b832069c5f3cd423dd")
+                .unwrap(),
+            H160::from_str("0x3fb1cd2cd96c6d5c0b5eb3322d807b34482481d4").unwrap(),
         ),
         (
-            B256(hex!(
-                "fe13266ff57000135fb9aa854bbfe455d8da85b21f626307bf3263a0c2a8e7fe"
-            )),
-            B160(hex!("dcc5ba93a1ed7e045690d722f2bf460a51c61415")),
+            H256::from_str("0xfe13266ff57000135fb9aa854bbfe455d8da85b21f626307bf3263a0c2a8e7fe")
+                .unwrap(),
+            H160::from_str("0xdcc5ba93a1ed7e045690d722f2bf460a51c61415").unwrap(),
         ),
     ]
     .into_iter()
@@ -155,9 +133,9 @@ pub fn execute_test_suit(
         // Create database and insert cache
         let mut database = revm::InMemoryDB::default();
         for (address, info) in unit.pre.iter() {
-            let acc_info = revm::primitives::AccountInfo {
+            let acc_info = revm::AccountInfo {
                 balance: info.balance,
-                code_hash: keccak256(&info.code), // try with dummy hash.
+                code_hash: H256::from_slice(Keccak256::digest(&info.code).as_slice()), //try with dummy hash.
                 code: Some(Bytecode::new_raw(info.code.clone())),
                 nonce: info.nonce,
             };
@@ -201,7 +179,8 @@ pub fn execute_test_suit(
                 spec_name,
                 SpecName::ByzantiumToConstantinopleAt5
                     | SpecName::Constantinople
-                    | SpecName::Unknown
+                    | SpecName::MergeEOF
+                    | SpecName::MergeMeterInitCode
             ) {
                 continue;
             }
@@ -231,8 +210,8 @@ pub fn execute_test_suit(
                             (
                                 item.address,
                                 item.storage_keys
-                                    .into_iter()
-                                    .map(|key| U256::from_be_bytes(key.0))
+                                    .iter()
+                                    .map(|f| U256::from_be_bytes(f.0))
                                     .collect::<Vec<_>>(),
                             )
                         })
@@ -254,20 +233,18 @@ pub fn execute_test_suit(
                 // do the deed
 
                 let timer = Instant::now();
-
-                let exec_result = if trace {
-                    evm.inspect_commit(TracerEip3155::new(Box::new(stdout()), false, false))
-                } else {
-                    evm.transact_commit()
-                };
+                let ExecutionResult {
+                    exit_reason,
+                    gas_used,
+                    gas_refunded,
+                    logs,
+                    ..
+                } = evm.transact_commit();
                 let timer = timer.elapsed();
 
                 *elapsed.lock().unwrap() += timer;
 
-                let is_legacy = !SpecId::enabled(
-                    evm.env.cfg.spec_id,
-                    revm::primitives::SpecId::SPURIOUS_DRAGON,
-                );
+                let is_legacy = !SpecId::enabled(evm.env.cfg.spec_id, SpecId::SPURIOUS_DRAGON);
                 let db = evm.db().unwrap();
                 let state_root = state_merkle_trie_root(
                     db.accounts
@@ -280,10 +257,6 @@ pub fn execute_test_suit(
                         })
                         .map(|(k, v)| (*k, v.clone())),
                 );
-                let logs = match &exec_result {
-                    Ok(ExecutionResult::Success { logs, .. }) => logs.clone(),
-                    _ => Vec::new(),
-                };
                 let logs_root = log_rlp_hash(logs);
                 if test.hash != state_root || test.logs != logs_root {
                     println!(
@@ -292,33 +265,13 @@ pub fn execute_test_suit(
                     );
                     let mut database_cloned = database.clone();
                     evm.database(&mut database_cloned);
-                    let _ =
-                        evm.inspect_commit(TracerEip3155::new(Box::new(stdout()), false, false));
+                    evm.inspect_commit(CustomPrintTracer::new());
                     let db = evm.db().unwrap();
                     println!("{path:?} UNIT_TEST:{name}\n");
-                    match &exec_result {
-                        Ok(ExecutionResult::Success {
-                            reason,
-                            gas_used,
-                            gas_refunded,
-                            ..
-                        }) => {
-                            println!("Failed reason: {reason:?} {path:?} UNIT_TEST:{name}\n gas:{gas_used:?} ({gas_refunded:?} refunded)");
-                        }
-                        Ok(ExecutionResult::Revert { gas_used, output }) => {
-                            println!(
-                                "Reverted: {output:?} {path:?} UNIT_TEST:{name}\n gas:{gas_used:?}"
-                            );
-                        }
-                        Ok(ExecutionResult::Halt { reason, gas_used }) => {
-                            println!(
-                                "Halted: {reason:?} {path:?} UNIT_TEST:{name}\n gas:{gas_used:?}"
-                            );
-                        }
-                        Err(out) => {
-                            println!("Output: {out:?} {path:?} UNIT_TEST:{name}\n");
-                        }
-                    }
+                    println!(
+                        "failed reason: {:?} {:?} UNIT_TEST:{}\n gas:{:?} ({:?} refunded)",
+                        exit_reason, path, name, gas_used, gas_refunded,
+                    );
                     println!("\nApplied state:{db:?}\n");
                     println!("\nStateroot: {state_root:?}\n");
                     return Err(TestError::RootMissmatch {
@@ -334,22 +287,13 @@ pub fn execute_test_suit(
     Ok(())
 }
 
-pub fn run(
-    test_files: Vec<PathBuf>,
-    mut single_thread: bool,
-    trace: bool,
-) -> Result<(), TestError> {
-    if trace {
-        single_thread = true;
-    }
-
+pub fn run(test_files: Vec<PathBuf>) -> Result<(), TestError> {
     let endjob = Arc::new(AtomicBool::new(false));
     let console_bar = Arc::new(ProgressBar::new(test_files.len() as u64));
     let mut joins: Vec<std::thread::JoinHandle<Result<(), TestError>>> = Vec::new();
     let queue = Arc::new(Mutex::new((0, test_files)));
     let elapsed = Arc::new(Mutex::new(std::time::Duration::ZERO));
-    let num_threads = if single_thread { 1 } else { 10 };
-    for _ in 0..num_threads {
+    for _ in 0..10 {
         let queue = queue.clone();
         let endjob = endjob.clone();
         let console_bar = console_bar.clone();
@@ -372,7 +316,7 @@ pub fn run(
                         return Ok(());
                     }
                     //println!("Test:{:?}\n",test_path);
-                    if let Err(err) = execute_test_suit(&test_path, &elapsed, trace) {
+                    if let Err(err) = execute_test_suit(&test_path, &elapsed) {
                         endjob.store(true, Ordering::SeqCst);
                         println!("Test[{index}] named:\n{test_path:?} failed: {err}\n");
                         return Err(err);

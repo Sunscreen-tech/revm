@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use bytes::Bytes;
-use revm::primitives::{B160, U256};
+use primitive_types::H160;
+use ruint::aliases::U256;
 use serde::{
     de::{self, Error},
     Deserialize,
@@ -49,7 +50,7 @@ where
     Ok(out)
 }
 
-pub fn deserialize_maybe_empty<'de, D>(deserializer: D) -> Result<Option<B160>, D::Error>
+pub fn deserialize_maybe_empty<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error>
 where
     D: de::Deserializer<'de>,
 {
@@ -57,7 +58,7 @@ where
     if string.is_empty() {
         return Ok(None);
     }
-    Ok(Some(B160::from_str(&string).map_err(D::Error::custom)?))
+    Ok(Some(H160::from_str(&string).map_err(D::Error::custom)?))
 }
 
 pub fn deserialize_str_as_bytes<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
