@@ -221,53 +221,24 @@ mod tests {
 
     #[test]
     fn precompile_fhe_add_works() -> Result<(), RuntimeError> {
-        let a = 3_i64;
-        let b = 61_i64;
-
-        let runtime = Runtime::new(FHE_APP.params())?;
-        let (public_key, private_key) = runtime.generate_keys()?;
-
-        // Encrypt values
-        let a_encrypted = runtime.encrypt(Signed::from(a), &public_key)?;
-        let b_encrypted = runtime.encrypt(Signed::from(b), &public_key)?;
-
-        // Encode values
-        let pubk_enc = rmp_serde::to_vec(&public_key).unwrap();
-        let a_enc = rmp_serde::to_vec(&a_encrypted).unwrap();
-        let b_enc = rmp_serde::to_vec(&b_encrypted).unwrap();
-
-        // Build input bytes
-        let mut input: Vec<u8> = Vec::new();
-        let offset_1 = 8 + pubk_enc.len();
-        let offset_2 = offset_1 + a_enc.len();
-        input.extend((offset_1 as u32).to_be_bytes());
-        input.extend((offset_2 as u32).to_be_bytes());
-        input.extend(pubk_enc);
-        input.extend(a_enc);
-        input.extend(b_enc);
-
-        // run precompile w/o gas
-        let res = fhe_add(&input, COST_FHE_ADD - 1);
-        assert_eq!(res, Err(Error::OutOfGas));
-
-        // run precompile w/ gas
-        let (cost, c_enc) = fhe_add(&input, COST_FHE_ADD).unwrap();
-        // decode it
-        let c_encrypted = rmp_serde::from_slice(&c_enc).unwrap();
-        // decrypt it
-        let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
-
-        assert_eq!(cost, COST_FHE_ADD);
-        assert_eq!(a + b, <Signed as Into<i64>>::into(c));
-        Ok(())
+        precompile_fhe_op_works(fhe_add, COST_FHE_ADD, 4, 5, 9)
     }
 
     #[test]
-    // TODO DRY
     fn precompile_fhe_multiply_works() -> Result<(), RuntimeError> {
-        let a = 3_i64;
-        let b = 61_i64;
+        precompile_fhe_op_works(fhe_multiply, COST_FHE_MULTIPLY, 4, 5, 20)
+    }
 
+    fn precompile_fhe_op_works<F>(
+        fhe_op: F,
+        op_cost: u64,
+        a: i64,
+        b: i64,
+        expected: i64,
+    ) -> Result<(), RuntimeError>
+    where
+        F: Fn(&[u8], u64) -> PrecompileResult,
+    {
         let runtime = Runtime::new(FHE_APP.params())?;
         let (public_key, private_key) = runtime.generate_keys()?;
 
@@ -291,18 +262,18 @@ mod tests {
         input.extend(b_enc);
 
         // run precompile w/o gas
-        let res = fhe_multiply(&input, COST_FHE_MULTIPLY - 1);
-        assert_eq!(res, Err(Error::OutOfGas));
+        let res = fhe_op(&input, op_cost - 1);
+        assert!(matches!(res, Err(Error::OutOfGas)));
 
         // run precompile w/ gas
-        let (cost, c_enc) = fhe_multiply(&input, COST_FHE_MULTIPLY).unwrap();
+        let PrecompileOutput { cost, output, .. } = fhe_op(&input, op_cost).unwrap();
         // decode it
-        let c_encrypted = rmp_serde::from_slice(&c_enc).unwrap();
+        let c_encrypted = rmp_serde::from_slice(&output).unwrap();
         // decrypt it
         let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
 
-        assert_eq!(cost, COST_FHE_MULTIPLY);
-        assert_eq!(a * b, <Signed as Into<i64>>::into(c));
+        assert_eq!(cost, op_cost);
+        assert_eq!(expected, <Signed as Into<i64>>::into(c));
         Ok(())
     }
 }
