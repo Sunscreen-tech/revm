@@ -164,6 +164,8 @@ impl Precompiles {
             let mut precompiles = Self::istanbul().clone();
             precompiles.fun.extend(
                 vec![
+                    fhe::FHE_ADD,
+                    fhe::FHE_MULTIPLY,
                     // EIP-2565: ModExp Gas Cost.
                     modexp::BERLIN,
                 ]
@@ -175,19 +177,7 @@ impl Precompiles {
 
     pub fn latest() -> &'static Self {
         static INSTANCE: OnceCell<Precompiles> = OnceCell::new();
-        INSTANCE.get_or_init(|| {
-            let mut precompiles = Self::berlin().clone();
-            precompiles.fun.extend(
-                vec![
-                    // EIP-2565: ModExp Gas Cost.
-                    fhe::FHE_ADD,
-                    fhe::FHE_MULTIPLY,
-                ]
-                .into_iter()
-                .map(From::from),
-            );
-            precompiles
-        })
+        INSTANCE.get_or_init(|| Self::berlin().clone())
     }
 
     pub fn new(spec: SpecId) -> &'static Self {
