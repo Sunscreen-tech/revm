@@ -63,8 +63,6 @@ fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// <- 2 * 4B -> <~----------------------->
 /// [Arg offsets][Public key][Arg 1][Arg 2]
 /// ```
-///
-// TODO proper error handling
 fn fhe_binary_op<F>(op_cost: u64, op: F, input: &[u8], gas_limit: u64) -> PrecompileResult
 where
     F: FnOnce(PublicKey, Ciphertext, Ciphertext) -> Result<Ciphertext, RuntimeError>,
@@ -75,19 +73,16 @@ where
 
     let ix_1 = &input[..4];
     let ix_2 = &input[4..8];
-    // TODO custom precompile error for
-    // 1. invalid input (not enough bytes)
-    // 2. target platform < 32B
-    let ix_1: usize = u32::from_be_bytes(ix_1.try_into().unwrap())
+    let ix_1: usize = u32::from_be_bytes(ix_1.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
         .try_into()
-        .unwrap();
+        .map_err(|_| FheErr::PlatformArchitecture)?;
     let ix_2: usize = u32::from_be_bytes(ix_2.try_into().unwrap())
         .try_into()
-        .unwrap();
+        .map_err(|_| FheErr::PlatformArchitecture)?;
 
-    let pubk = rmp_serde::from_slice(&input[8..ix_1]).unwrap();
-    let arg1 = rmp_serde::from_slice(&input[ix_1..ix_2]).unwrap();
-    let arg2 = rmp_serde::from_slice(&input[ix_2..]).unwrap();
+    let pubk = rmp_serde::from_slice(&input[8..ix_1]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg1 = rmp_serde::from_slice(&input[ix_1..ix_2]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg2 = rmp_serde::from_slice(&input[ix_2..]).map_err(|_| FheErr::InvalidEncoding)?;
 
     let result = op(pubk, arg1, arg2).unwrap();
 
@@ -95,6 +90,24 @@ where
         op_cost,
         rmp_serde::to_vec(&result).unwrap(),
     ))
+}
+
+enum FheErr {
+    UnexpectedEOF,
+    PlatformArchitecture,
+    InvalidEncoding,
+}
+
+impl From<FheErr> for Error {
+    fn from(value: FheErr) -> Self {
+        match value {
+            FheErr::UnexpectedEOF => Error::Other("Not enough input".into()),
+            FheErr::PlatformArchitecture => {
+                Error::Other("Validator needs at least 32B architecture".into())
+            }
+            FheErr::InvalidEncoding => Error::Other("Invalid MessagePack encoding".into()),
+        }
+    }
 }
 
 /// Expected format for `input`:
