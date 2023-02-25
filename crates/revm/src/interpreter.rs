@@ -111,13 +111,17 @@ impl Interpreter {
         let mut ret = Return::Continue;
         // add first gas_block
         if USE_GAS && !self.gas.record_cost(self.contract.first_gas_block()) {
+            println!("LOG shouldn't happen as we're not USE_GASing");
             return Return::OutOfGas;
         }
+        let mut last_opcode: Option<u8> = None;
+        let mut last_ret: Option<Return> = None;
         while ret == Return::Continue {
             // step
             if H::INSPECT {
                 let ret = host.step(self, SPEC::IS_STATIC_CALL);
                 if ret != Return::Continue {
+                    println!("LOG host.step returned {ret:?}");
                     return ret;
                 }
             }
@@ -127,14 +131,25 @@ impl Interpreter {
             // it will do noop and just stop execution of this contract
             self.instruction_pointer = unsafe { self.instruction_pointer.offset(1) };
             ret = eval::<H, SPEC>(opcode, self, host);
+            if matches!(ret, Return::Revert) {
+                println!("LOG eval(0x{opcode:x?}, self, host) reverted!");
+                println!(
+                    "LOG last_opcode: 0x{:x?}, last_ret: {last_ret:?}",
+                    last_opcode.unwrap()
+                );
+            }
 
             if H::INSPECT {
                 let ret = host.step_end(self, SPEC::IS_STATIC_CALL, ret);
                 if ret != Return::Continue {
+                    println!("LOG host.step_end returned {ret:?}");
                     return ret;
                 }
             }
+            last_opcode = Some(opcode);
+            last_ret = Some(ret);
         }
+        println!("LOG interpreter run (hence eval) finished with {ret:?}");
         ret
     }
 

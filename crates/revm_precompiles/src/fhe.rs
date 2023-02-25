@@ -50,7 +50,10 @@ pub const FHE_MULTIPLY: (Address, Precompile) = (
 /// 1. u32 -> offset fo
 // TODO proper error handling
 fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
-    fhe_binary_op(COST_FHE_ADD, run_add, input, gas_limit)
+    println!("LOG fhe_add running with gas_limit: {gas_limit}");
+    let res = fhe_binary_op(COST_FHE_ADD, run_add, input, gas_limit);
+    println!("LOG fhe_add finished with Ok == {}!", res.is_ok());
+    res
 }
 
 fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
@@ -70,7 +73,9 @@ where
     if op_cost > gas_limit {
         return Err(Error::OutOfGas);
     }
-
+    if input.len() < 8 {
+        return Err(FheErr::UnexpectedEOF.into());
+    }
     let ix_1 = &input[..4];
     let ix_2 = &input[4..8];
     let ix_1: usize = u32::from_be_bytes(ix_1.try_into().map_err(|_| FheErr::UnexpectedEOF)?)

@@ -58,6 +58,7 @@ impl<DB: Database + DatabaseCommit> EVM<DB> {
 impl<DB: Database> EVM<DB> {
     /// Execute transaction without writing to DB, return change state.
     pub fn transact(&mut self) -> (ExecutionResult, State) {
+        println!("LOG running transact...");
         if let Some(db) = self.db.as_mut() {
             let mut noop = NoOpInspector {};
             let out = evm_inner::<DB, false>(&mut self.env, db, &mut noop).transact();
@@ -72,6 +73,7 @@ impl<DB: Database> EVM<DB> {
         &mut self,
         mut inspector: INSP,
     ) -> (ExecutionResult, State) {
+        println!("LOG running inspect...");
         if let Some(db) = self.db.as_mut() {
             evm_inner::<DB, true>(&mut self.env, db, &mut inspector).transact()
         } else {
@@ -83,6 +85,7 @@ impl<DB: Database> EVM<DB> {
 impl<'a, DB: DatabaseRef> EVM<DB> {
     /// Execute transaction without writing to DB, return change state.
     pub fn transact_ref(&self) -> (ExecutionResult, State) {
+        println!("LOG running transact_ref...");
         if let Some(db) = self.db.as_ref() {
             let mut noop = NoOpInspector {};
             let mut db = RefDBWrapper::new(db);
@@ -101,6 +104,7 @@ impl<'a, DB: DatabaseRef> EVM<DB> {
         &'a self,
         mut inspector: INSP,
     ) -> (ExecutionResult, State) {
+        println!("LOG running inspect_ref...");
         if let Some(db) = self.db.as_ref() {
             let mut db = RefDBWrapper::new(db);
             let db = &mut db;

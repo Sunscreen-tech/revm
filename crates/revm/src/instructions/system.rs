@@ -128,7 +128,9 @@ pub fn returndatacopy<SPEC: Spec>(interp: &mut Interpreter) -> Return {
     check!(SPEC::enabled(BYZANTIUM));
     pop!(interp, memory_offset, offset, len);
     let len = as_usize_or_fail!(len, Return::OutOfGas);
+    println!("LOG made it past usize_or_fail with len {}", len);
     gas_or_fail!(interp, gas::verylowcopy_cost(len as u64));
+    println!("LOG made it past gas_or_fail with len {}", len);
     let data_offset = as_usize_saturated!(offset);
     let (data_end, overflow) = data_offset.overflowing_add(len);
     if overflow || data_end > interp.return_data_buffer.len() {
@@ -136,7 +138,9 @@ pub fn returndatacopy<SPEC: Spec>(interp: &mut Interpreter) -> Return {
     }
     if len != 0 {
         let memory_offset = as_usize_or_fail!(memory_offset, Return::OutOfGas);
+        println!("LOG made it to memory_offset {memory_offset}");
         memory_resize!(interp, memory_offset, len);
+        println!("LOG made it to interp.memory.set");
         interp.memory.set(
             memory_offset,
             &interp.return_data_buffer[data_offset..data_end],

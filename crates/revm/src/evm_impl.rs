@@ -72,6 +72,7 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> Transact
         }
 
         #[cfg(feature = "optional_block_gas_limit")]
+        //println!("LOG block gas limit is off");
         let disable_block_gas_limit = self.env().cfg.disable_block_gas_limit;
         #[cfg(not(feature = "optional_block_gas_limit"))]
         let disable_block_gas_limit = false;
@@ -84,6 +85,7 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> Transact
         let mut gas = Gas::new(gas_limit);
         // record initial gas cost. if not using gas metering init will return 0
         if !gas.record_cost(self.initialization::<GSPEC>()) {
+            println!("LOG FAILED AT RECORD_COST!");
             return exit(Return::OutOfGas);
         }
 
@@ -168,7 +170,9 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> Transact
                     gas_limit,
                     context,
                 };
+                println!("LOG calling call_inner...");
                 let (exit, gas, bytes) = self.call_inner::<GSPEC>(&mut call_input);
+                println!("LOG ...finished call_inner with exit {exit:?}, gas: {gas:?}");
                 (exit, gas, TransactOut::Call(bytes))
             }
             TransactTo::Create(scheme) => {
@@ -179,7 +183,9 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> Transact
                     init_code: data,
                     gas_limit,
                 };
+                println!("LOG calling create_inner...");
                 let (exit, address, ret_gas, bytes) = self.create_inner::<GSPEC>(&mut create_input);
+                println!("LOG ...finished create_inner with exit {exit:?}");
                 (exit, ret_gas, TransactOut::Create(bytes, address))
             }
         };
@@ -383,8 +389,11 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> EVMImpl<'a, GSPEC, DB, 
     ) -> (Return, Option<H160>, Gas, Bytes) {
         // Call inspector
         if INSPECT {
+            println!("LOG create_inner called with INSPECT");
             let (ret, address, gas, out) = self.inspector.create(&mut self.data, inputs);
+            println!("LOG self.inspector.create() => ret: {ret:?}, gas: {gas:?}");
             if ret != Return::Continue {
+                println!("LOG self.inspector.create().ret != Continue, calling create_end");
                 return self
                     .inspector
                     .create_end(&mut self.data, inputs, ret, address, gas, out);
@@ -563,6 +572,7 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> EVMImpl<'a, GSPEC, DB, 
             let (ret, gas, out) = self
                 .inspector
                 .call(&mut self.data, inputs, SPEC::IS_STATIC_CALL);
+            println!("LOG call_inner.call returned ret {ret:?}, gas {gas:?}");
             if ret != Return::Continue {
                 return self.inspector.call_end(
                     &mut self.data,
@@ -587,6 +597,7 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> EVMImpl<'a, GSPEC, DB, 
         if self.data.journaled_state.depth() > interpreter::CALL_STACK_LIMIT {
             let (ret, gas, out) = (Return::CallTooDeep, gas, Bytes::new());
             if Self::INSPECT {
+                println!("LOG calling self.inspector.call_end...");
                 return self.inspector.call_end(
                     &mut self.data,
                     inputs,
@@ -619,6 +630,7 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> EVMImpl<'a, GSPEC, DB, 
             self.data.journaled_state.checkpoint_revert(checkpoint);
             let (ret, gas, out) = (e, gas, Bytes::new());
             if Self::INSPECT {
+                println!("LOG calling self.inspector.call_end 2...");
                 return self.inspector.call_end(
                     &mut self.data,
                     inputs,
@@ -634,10 +646,15 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> EVMImpl<'a, GSPEC, DB, 
 
         // Call precompiles
         let (ret, gas, out) = if let Some(precompile) = self.precompiles.get(&inputs.contract) {
+            println!("LOG precompile found at {}", inputs.contract);
             let out = match precompile {
                 Precompile::Standard(fun) => fun(inputs.input.as_ref(), inputs.gas_limit),
                 Precompile::Custom(fun) => fun(inputs.input.as_ref(), inputs.gas_limit),
             };
+            println!(
+                "LOG evm_impl:651 got out with cost {:?}",
+                out.as_ref().map(|p| p.cost)
+            );
             match out {
                 Ok(PrecompileOutput { output, cost, logs }) => {
                     if !crate::USE_GAS || gas.record_cost(cost) {
@@ -651,11 +668,13 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> EVMImpl<'a, GSPEC, DB, 
                         self.data.journaled_state.checkpoint_commit();
                         (Return::Continue, gas, Bytes::from(output))
                     } else {
+                        println!("LOG evm_impl:664 is arbitrarily reverting...?");
                         self.data.journaled_state.checkpoint_revert(checkpoint);
                         (Return::OutOfGas, gas, Bytes::new())
                     }
                 }
                 Err(e) => {
+                    println!("LOG evm_impl:670 sees error {e:?}...?");
                     let ret = if let precompiles::Return::OutOfGas = e {
                         Return::OutOfGas
                     } else {
@@ -686,6 +705,7 @@ impl<'a, GSPEC: Spec, DB: Database, const INSPECT: bool> EVMImpl<'a, GSPEC, DB, 
                     .initialize_interp(&mut interp, &mut self.data, false);
             }
             let exit_reason = interp.run::<Self, SPEC>(self);
+            println!("LOG interp.run returned with exit_reason {exit_reason:?}");
             if matches!(exit_reason, return_ok!()) {
                 self.data.journaled_state.checkpoint_commit();
             } else {

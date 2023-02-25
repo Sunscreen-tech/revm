@@ -12,7 +12,8 @@ macro_rules! gas {
     ($interp:expr, $gas:expr) => {
         if crate::USE_GAS {
             if !$interp.gas.record_cost(($gas)) {
-                return Return::OutOfGas;
+                panic!("we failed at gas!");
+                //return Return::OutOfGas;
             }
         }
     };
@@ -31,7 +32,11 @@ macro_rules! gas_or_fail {
         if crate::USE_GAS {
             match $gas {
                 Some(gas_used) => gas!($interp, gas_used),
-                None => return Return::OutOfGas,
+                None =>
+                //return Return::OutOfGas
+                {
+                    panic!("we failed at gas_or_fail")
+                }
             }
         }
     };
@@ -46,20 +51,29 @@ macro_rules! memory_resize {
         {
             #[cfg(feature = "memory_limit")]
             if new_size > ($interp.memory_limit as usize) {
-                return Return::OutOfGas;
+                println!("LOG failure at memory_resize 1:");
+                println!(
+                    "LOG interp.memory_limit: {}, interp.memory_limit:usize: {}",
+                    $interp.memory_limit, $interp.memory_limit as usize
+                );
+                println!("LOG len: {len}, offset: {offset}, new_size: {new_size}");
+                panic!("we failed at memory_resize 1");
+                //return Return::OutOfGas;
             }
 
             if new_size > $interp.memory.len() {
                 if crate::USE_GAS {
                     let num_bytes = new_size / 32;
                     if !$interp.gas.record_memory(crate::gas::memory_gas(num_bytes)) {
-                        return Return::OutOfGas;
+                        panic!("we failed at memory_resize 2");
+                        //return Return::OutOfGas;
                     }
                 }
                 $interp.memory.resize(new_size);
             }
         } else {
-            return Return::OutOfGas;
+            //return Return::OutOfGas;
+            panic!("we failed at memory_resize 3");
         }
     }};
 }
@@ -280,7 +294,8 @@ macro_rules! as_usize_saturated {
 macro_rules! as_usize_or_fail {
     ( $v:expr ) => {{
         if $v.0[1] != 0 || $v.0[2] != 0 || $v.0[3] != 0 {
-            return Return::OutOfGas;
+            panic!("we failed at as_usize_or_fail");
+            //return Return::OutOfGas;
         }
 
         $v.0[0] as usize
@@ -288,7 +303,8 @@ macro_rules! as_usize_or_fail {
 
     ( $v:expr, $reason:expr ) => {{
         if $v.0[1] != 0 || $v.0[2] != 0 || $v.0[3] != 0 {
-            return $reason;
+            panic!("we failed at as_usize_or_fail throwing {:?}", $reason);
+            //return $reason;
         }
 
         $v.0[0] as usize
