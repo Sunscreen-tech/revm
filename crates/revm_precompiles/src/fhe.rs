@@ -70,7 +70,9 @@ where
     if op_cost > gas_limit {
         return Err(Error::OutOfGas);
     }
-
+    if input.len() < 8 {
+        return Err(FheErr::UnexpectedEOF.into());
+    }
     let ix_1 = &input[..4];
     let ix_2 = &input[4..8];
     let ix_1: usize = u32::from_be_bytes(ix_1.try_into().map_err(|_| FheErr::UnexpectedEOF)?)

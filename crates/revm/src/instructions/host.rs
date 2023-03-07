@@ -263,12 +263,16 @@ pub fn create<H: Host, SPEC: Spec>(
     match return_reason {
         return_ok!() => {
             push_h256!(interp, address.map(|a| a.into()).unwrap_or_default());
-            interp.gas.erase_cost(gas.remaining());
-            interp.gas.record_refund(gas.refunded());
+            if crate::USE_GAS {
+                interp.gas.erase_cost(gas.remaining());
+                interp.gas.record_refund(gas.refunded());
+            }
         }
         return_revert!() => {
             push_h256!(interp, H256::default());
-            interp.gas.erase_cost(gas.remaining());
+            if crate::USE_GAS {
+                interp.gas.erase_cost(gas.remaining());
+            }
         }
         Return::FatalExternalError => return Return::FatalExternalError,
         _ => {
@@ -433,16 +437,20 @@ pub fn call<H: Host, SPEC: Spec>(
 
     match reason {
         return_ok!() => {
-            // return unspend gas.
-            interp.gas.erase_cost(gas.remaining());
-            interp.gas.record_refund(gas.refunded());
+            if crate::USE_GAS {
+                // return unspend gas.
+                interp.gas.erase_cost(gas.remaining());
+                interp.gas.record_refund(gas.refunded());
+            }
             interp
                 .memory
                 .set(out_offset, &interp.return_data_buffer[..target_len]);
             push!(interp, U256::one());
         }
         return_revert!() => {
-            interp.gas.erase_cost(gas.remaining());
+            if crate::USE_GAS {
+                interp.gas.erase_cost(gas.remaining());
+            }
             interp
                 .memory
                 .set(out_offset, &interp.return_data_buffer[..target_len]);
