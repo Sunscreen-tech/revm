@@ -1,6 +1,4 @@
-use std;
-
-use super::{CustomPrecompileFn, Error, Precompile, PrecompileResult, B160};
+use crate::{CustomPrecompileFn, Error, Precompile, PrecompileResult, B160};
 use lazy_static::lazy_static;
 use sunscreen::{
     fhe_program,
@@ -73,8 +71,6 @@ fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// <- 2 * 4B -> <~----------------------->
 /// [Arg offsets][Public key][Arg 1][Arg 2]
 /// ```
-///
-// TODO proper error handling
 fn fhe_binary_op<F>(op_cost: u64, op: F, input: &[u8], gas_limit: u64) -> PrecompileResult
 where
     F: FnOnce(PublicKey, Ciphertext, Ciphertext) -> Result<Ciphertext, RuntimeError>,
@@ -82,55 +78,44 @@ where
     if op_cost > gas_limit {
         return Err(Error::OutOfGas);
     }
-
+    if input.len() < 8 {
+        return Err(FheErr::UnexpectedEOF.into());
+    }
     let ix_1 = &input[..4];
     let ix_2 = &input[4..8];
-    // TODO custom precompile error for
-    // 1. invalid input (not enough bytes)
-    // 2. target platform < 32B
-    let ix_1: usize = u32::from_be_bytes(ix_1.try_into().unwrap())
+    let ix_1: usize = u32::from_be_bytes(ix_1.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
         .try_into()
-        .unwrap();
+        .map_err(|_| FheErr::PlatformArchitecture)?;
     let ix_2: usize = u32::from_be_bytes(ix_2.try_into().unwrap())
         .try_into()
-        .unwrap();
+        .map_err(|_| FheErr::PlatformArchitecture)?;
 
-    let pubk = rmp_serde::from_slice(&input[8..ix_1]).unwrap();
-    let arg1 = rmp_serde::from_slice(&input[ix_1..ix_2]).unwrap();
-    let arg2 = rmp_serde::from_slice(&input[ix_2..]).unwrap();
+    let pubk = rmp_serde::from_slice(&input[8..ix_1]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg1 = rmp_serde::from_slice(&input[ix_1..ix_2]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg2 = rmp_serde::from_slice(&input[ix_2..]).map_err(|_| FheErr::InvalidEncoding)?;
 
     let result = op(pubk, arg1, arg2).unwrap();
 
     Ok((op_cost, rmp_serde::to_vec(&result).unwrap()))
 }
 
-/// Expected format for `input`:
-/// 1B: # of args -> N
-/// 2(4B ~ u32) - N(4B ~ u32): for each arg, an offset into bytes array
-/// <args>
-/// <possibly padding?>
-/// <serialized program>
-// TODO finish this function
-//fn fhe_arbitrary(input: &[u8], gas_limit: u64) -> PrecompileResult {
-//// TODO probably some variability to cost based on input size?
-//let cost = 200;
-//if cost > gas_limit {
-//return Err(Error::OutOfGas);
-//}
+enum FheErr {
+    UnexpectedEOF,
+    PlatformArchitecture,
+    InvalidEncoding,
+}
 
-//let num_args = input[0] as usize;
-//let mut offsets = Vec::with_capacity(num_args);
-//let mut args = Vec::with_capacity(num_args);
-//for ix in 1..=num_args + 1 {
-//}
-//for w in offsets.windows(2) {
-//}
-
-//let program = args.pop();
-
-//let output = todo!(); // call fhe(args, program)
-//Ok((cost, output))
-//}
+impl From<FheErr> for Error {
+    fn from(value: FheErr) -> Self {
+        match value {
+            FheErr::UnexpectedEOF => Error::Other("Not enough input".into()),
+            FheErr::PlatformArchitecture => {
+                Error::Other("Validator needs at least 32B architecture".into())
+            }
+            FheErr::InvalidEncoding => Error::Other("Invalid MessagePack encoding".into()),
+        }
+    }
+}
 
 fn run_add(
     public_key: PublicKey,
@@ -215,53 +200,24 @@ mod tests {
 
     #[test]
     fn precompile_fhe_add_works() -> Result<(), RuntimeError> {
-        let a = 3_i64;
-        let b = 61_i64;
-
-        let runtime = Runtime::new(FHE_APP.params())?;
-        let (public_key, private_key) = runtime.generate_keys()?;
-
-        // Encrypt values
-        let a_encrypted = runtime.encrypt(Signed::from(a), &public_key)?;
-        let b_encrypted = runtime.encrypt(Signed::from(b), &public_key)?;
-
-        // Encode values
-        let pubk_enc = rmp_serde::to_vec(&public_key).unwrap();
-        let a_enc = rmp_serde::to_vec(&a_encrypted).unwrap();
-        let b_enc = rmp_serde::to_vec(&b_encrypted).unwrap();
-
-        // Build input bytes
-        let mut input: Vec<u8> = Vec::new();
-        let offset_1 = 8 + pubk_enc.len();
-        let offset_2 = offset_1 + a_enc.len();
-        input.extend((offset_1 as u32).to_be_bytes());
-        input.extend((offset_2 as u32).to_be_bytes());
-        input.extend(pubk_enc);
-        input.extend(a_enc);
-        input.extend(b_enc);
-
-        // run precompile w/o gas
-        let res = fhe_add(&input, COST_FHE_ADD - 1);
-        assert_eq!(res, Err(Error::OutOfGas));
-
-        // run precompile w/ gas
-        let (cost, c_enc) = fhe_add(&input, COST_FHE_ADD).unwrap();
-        // decode it
-        let c_encrypted = rmp_serde::from_slice(&c_enc).unwrap();
-        // decrypt it
-        let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
-
-        assert_eq!(cost, COST_FHE_ADD);
-        assert_eq!(a + b, <Signed as Into<i64>>::into(c));
-        Ok(())
+        precompile_fhe_op_works(fhe_add, COST_FHE_ADD, 4, 5, 9)
     }
 
     #[test]
-    // TODO DRY
     fn precompile_fhe_multiply_works() -> Result<(), RuntimeError> {
-        let a = 3_i64;
-        let b = 61_i64;
+        precompile_fhe_op_works(fhe_multiply, COST_FHE_MULTIPLY, 4, 5, 20)
+    }
 
+    fn precompile_fhe_op_works<F>(
+        fhe_op: F,
+        op_cost: u64,
+        a: i64,
+        b: i64,
+        expected: i64,
+    ) -> Result<(), RuntimeError>
+    where
+        F: Fn(&[u8], u64) -> PrecompileResult,
+    {
         let runtime = Runtime::new(FHE_APP.params())?;
         let (public_key, private_key) = runtime.generate_keys()?;
 
@@ -285,18 +241,18 @@ mod tests {
         input.extend(b_enc);
 
         // run precompile w/o gas
-        let res = fhe_multiply(&input, COST_FHE_MULTIPLY - 1);
-        assert_eq!(res, Err(Error::OutOfGas));
+        let res = fhe_op(&input, op_cost - 1);
+        assert!(matches!(res, Err(Error::OutOfGas)));
 
         // run precompile w/ gas
-        let (cost, c_enc) = fhe_multiply(&input, COST_FHE_MULTIPLY).unwrap();
+        let (cost, output) = fhe_op(&input, op_cost).unwrap();
         // decode it
-        let c_encrypted = rmp_serde::from_slice(&c_enc).unwrap();
+        let c_encrypted = rmp_serde::from_slice(&output).unwrap();
         // decrypt it
         let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
 
-        assert_eq!(cost, COST_FHE_MULTIPLY);
-        assert_eq!(a * b, <Signed as Into<i64>>::into(c));
+        assert_eq!(cost, op_cost);
+        assert_eq!(expected, <Signed as Into<i64>>::into(c));
         Ok(())
     }
 }

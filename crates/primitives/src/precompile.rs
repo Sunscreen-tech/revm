@@ -21,4 +21,6 @@ pub enum PrecompileError {
     Bn128FieldPointNotAMember,
     Bn128AffineGFailedToCreate,
     Bn128PairLength,
+    // Custom
+    Other(String),
 }
