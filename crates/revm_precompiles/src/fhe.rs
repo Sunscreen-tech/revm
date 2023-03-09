@@ -82,15 +82,15 @@ where
         .try_into()
         .map_err(|_| FheErr::PlatformArchitecture)?;
 
-    let pubk = rmp_serde::from_slice(&input[8..ix_1]).map_err(|_| FheErr::InvalidEncoding)?;
-    let arg1 = rmp_serde::from_slice(&input[ix_1..ix_2]).map_err(|_| FheErr::InvalidEncoding)?;
-    let arg2 = rmp_serde::from_slice(&input[ix_2..]).map_err(|_| FheErr::InvalidEncoding)?;
+    let pubk = bincode::deserialize(&input[8..ix_1]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg1 = bincode::deserialize(&input[ix_1..ix_2]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg2 = bincode::deserialize(&input[ix_2..]).map_err(|_| FheErr::InvalidEncoding)?;
 
     let result = op(pubk, arg1, arg2).unwrap();
 
     Ok(PrecompileOutput::without_logs(
         op_cost,
-        rmp_serde::to_vec(&result).unwrap(),
+        bincode::serialize(&result).unwrap(),
     ))
 }
 
@@ -249,9 +249,9 @@ mod tests {
         let b_encrypted = runtime.encrypt(Signed::from(b), &public_key)?;
 
         // Encode values
-        let pubk_enc = rmp_serde::to_vec(&public_key).unwrap();
-        let a_enc = rmp_serde::to_vec(&a_encrypted).unwrap();
-        let b_enc = rmp_serde::to_vec(&b_encrypted).unwrap();
+        let pubk_enc = bincode::serialize(&public_key).unwrap();
+        let a_enc = bincode::serialize(&a_encrypted).unwrap();
+        let b_enc = bincode::serialize(&b_encrypted).unwrap();
 
         // Build input bytes
         let mut input: Vec<u8> = Vec::new();
@@ -270,7 +270,7 @@ mod tests {
         // run precompile w/ gas
         let PrecompileOutput { cost, output, .. } = fhe_op(&input, op_cost).unwrap();
         // decode it
-        let c_encrypted = rmp_serde::from_slice(&output).unwrap();
+        let c_encrypted = bincode::deserialize(&output).unwrap();
         // decrypt it
         let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
 
