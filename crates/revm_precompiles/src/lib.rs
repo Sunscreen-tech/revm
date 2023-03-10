@@ -165,7 +165,9 @@ impl Precompiles {
             precompiles.fun.extend(
                 vec![
                     fhe::FHE_ADD,
+                    fhe::FHE_SUBTRACT,
                     fhe::FHE_MULTIPLY,
+                    fhe::FHE_ENC_ZERO,
                     // EIP-2565: ModExp Gas Cost.
                     modexp::BERLIN,
                 ]

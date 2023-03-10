@@ -7,19 +7,30 @@ use lazy_static::lazy_static;
 use sunscreen::{
     fhe_program,
     types::{bfv::Signed, Cipher},
-    Application, Ciphertext, Compiler, PublicKey, Runtime, RuntimeError,
+    Application, Ciphertext, Compiler, Params, PublicKey, Runtime, RuntimeError, SchemeType,
 };
 
 pub const COST_FHE_ADD: u64 = 200;
+pub const COST_FHE_SUBTRACT: u64 = 200;
 pub const COST_FHE_MULTIPLY: u64 = 1000;
+pub const COST_FHE_ENC_ZERO: u64 = 100;
 
 // TODO This should maybe go in a separate crate that the wallet imports as
 // well, to ensure the same params are used.
+// TODO make a static Runtime as well
 lazy_static! {
     static ref FHE_APP: Application = {
         Compiler::new()
             .fhe_program(add)
+            .fhe_program(subtract)
             .fhe_program(multiply)
+            .with_params(&Params {
+                lattice_dimension: 4096,
+                coeff_modulus: vec![0xffffee001, 0xffffc4001, 0x1ffffe0001],
+                plain_modulus: 4_096,
+                scheme_type: SchemeType::Bfv,
+                security_level: sunscreen::SecurityLevel::TC128,
+            })
             .compile()
             .unwrap()
     };
@@ -29,14 +40,23 @@ lazy_static! {
 //u64_to_b160(204), // 0xcc
 //Precompile::Custom(fhe_arbitrary as CustomPrecompileFn),
 //);
-
 pub const FHE_ADD: (Address, Precompile) = (
     crate::make_address(0, 205), // 0xcd
     Precompile::Custom(fhe_add as CustomPrecompileFn),
 );
 
-pub const FHE_MULTIPLY: (Address, Precompile) = (
+pub const FHE_SUBTRACT: (Address, Precompile) = (
     crate::make_address(0, 206), // 0xce
+    Precompile::Custom(fhe_subtract as CustomPrecompileFn),
+);
+
+pub const FHE_ENC_ZERO: (Address, Precompile) = (
+    crate::make_address(0, 207), // 0xcf
+    Precompile::Custom(fhe_enc_zero as CustomPrecompileFn),
+);
+
+pub const FHE_MULTIPLY: (Address, Precompile) = (
+    crate::make_address(0, 208), // 0xd0
     Precompile::Custom(fhe_multiply as CustomPrecompileFn),
 );
 
@@ -46,15 +66,50 @@ pub const FHE_MULTIPLY: (Address, Precompile) = (
 /// <--- 2 * 4B ---><~----------------------------~>
 /// [Addend offsets][Public key][Addend 1][Addend 2]
 /// ```
-///
-/// 1. u32 -> offset fo
-// TODO proper error handling
 fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(COST_FHE_ADD, run_add, input, gas_limit)
 }
 
+/// Expects
+///
+/// ```text
+/// <--- 2 * 4B ---><~-----------------------------~>
+/// [ Arg offsets  ][Public key][Minuend][Subtrahend]
+/// ```
+fn fhe_subtract(input: &[u8], gas_limit: u64) -> PrecompileResult {
+    fhe_binary_op(COST_FHE_SUBTRACT, run_subtract, input, gas_limit)
+}
+
+/// Expects
+///
+/// ```text
+/// <--- 2 * 4B ---><~----------------------------~>
+/// [Factor offsets][Public key][Factor 1][Factor 2]
+/// ```
 fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(COST_FHE_MULTIPLY, run_multiply, input, gas_limit)
+}
+
+/// Expects
+///
+/// ```text
+/// <~--------~>
+/// [Public key]
+/// ```
+fn fhe_enc_zero(input: &[u8], gas_limit: u64) -> PrecompileResult {
+    if COST_FHE_ENC_ZERO > gas_limit {
+        return Err(Error::OutOfGas);
+    }
+    let pubk = bincode::deserialize(input).map_err(|_| FheErr::InvalidEncoding)?;
+    let runtime = Runtime::new(FHE_APP.params()).map_err(FheErr::SunscreenError)?;
+    let zero = runtime
+        .encrypt(Signed::from(0), &pubk)
+        .map_err(FheErr::SunscreenError)?;
+
+    Ok(PrecompileOutput::without_logs(
+        COST_FHE_ENC_ZERO,
+        bincode::serialize(&zero).unwrap(),
+    ))
 }
 
 /// Expects
@@ -98,6 +153,7 @@ enum FheErr {
     UnexpectedEOF,
     PlatformArchitecture,
     InvalidEncoding,
+    SunscreenError(RuntimeError),
 }
 
 impl From<FheErr> for Error {
@@ -107,7 +163,8 @@ impl From<FheErr> for Error {
             FheErr::PlatformArchitecture => {
                 Error::Other("Validator needs at least 32B architecture".into())
             }
-            FheErr::InvalidEncoding => Error::Other("Invalid MessagePack encoding".into()),
+            FheErr::InvalidEncoding => Error::Other("Invalid bincode encoding".into()),
+            FheErr::SunscreenError(e) => Error::Other(format!("Sunscreen error: {:?}", e).into()),
         }
     }
 }
@@ -145,10 +202,24 @@ fn run_add(
     a: Ciphertext,
     b: Ciphertext,
 ) -> Result<Ciphertext, RuntimeError> {
-    // TODO does it make sense to keep a singleton/oncecell runtime as well?
     let runtime = Runtime::new(FHE_APP.params()).unwrap();
     runtime
         .run(FHE_APP.get_program(add).unwrap(), vec![a, b], &public_key)
+        .map(|mut out| out.pop().unwrap())
+}
+
+fn run_subtract(
+    public_key: PublicKey,
+    a: Ciphertext,
+    b: Ciphertext,
+) -> Result<Ciphertext, RuntimeError> {
+    let runtime = Runtime::new(FHE_APP.params()).unwrap();
+    runtime
+        .run(
+            FHE_APP.get_program(subtract).unwrap(),
+            vec![a, b],
+            &public_key,
+        )
         .map(|mut out| out.pop().unwrap())
 }
 
@@ -172,6 +243,12 @@ fn run_multiply(
 #[fhe_program(scheme = "bfv")]
 fn add(a: Cipher<Signed>, b: Cipher<Signed>) -> Cipher<Signed> {
     a + b
+}
+
+/// Subtraction
+#[fhe_program(scheme = "bfv")]
+fn subtract(a: Cipher<Signed>, b: Cipher<Signed>) -> Cipher<Signed> {
+    a - b
 }
 
 /// Multiplication
@@ -229,6 +306,30 @@ mod tests {
     #[test]
     fn precompile_fhe_multiply_works() -> Result<(), RuntimeError> {
         precompile_fhe_op_works(fhe_multiply, COST_FHE_MULTIPLY, 4, 5, 20)
+    }
+
+    #[test]
+    fn precompile_fhe_subtract_works() -> Result<(), RuntimeError> {
+        precompile_fhe_op_works(fhe_subtract, COST_FHE_SUBTRACT, 10, 8, 2)
+    }
+
+    #[test]
+    fn precompile_fhe_enc_zero_works() -> Result<(), RuntimeError> {
+        let runtime = Runtime::new(FHE_APP.params())?;
+        let (public_key, private_key) = runtime.generate_keys()?;
+
+        // Encode pubk
+        let pubk_enc = bincode::serialize(&public_key).unwrap();
+
+        // run precompile w/o gas
+        let PrecompileOutput { output, .. } = fhe_enc_zero(&pubk_enc, COST_FHE_ENC_ZERO).unwrap();
+        // decode it
+        let c_encrypted = bincode::deserialize(&output).unwrap();
+        // decrypt it
+        let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
+
+        assert_eq!(0, <Signed as Into<i64>>::into(c));
+        Ok(())
     }
 
     fn precompile_fhe_op_works<F>(
