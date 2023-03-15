@@ -120,8 +120,8 @@ fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// Expects (not to scale!)
 ///
 /// ```text
-/// <------ 4B -----><-- 8B --><~------------------~>
-/// [Addend 2 offset][Addend 1][Public key][Addend 2]
+/// <------ 4B -----><~------------------~><-- 8B -->
+/// [Addend 1 offset][Public key][Addend 1][Addend 2]
 /// ```
 fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op_plain(
@@ -135,13 +135,15 @@ fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// Expects (not to scale!)
 ///
 /// ```text
-/// <----- 4B -----><-- 8B ----><~-----------------~>
-/// [Minuend offset][Subtrahend][Public key][Minuend]
+/// <----- 4B -----><~-----------------~><-- 8B ---->
+/// [Minuend offset][Public key][Minuend][Subtrahend]
 /// ```
 ///
-/// Note that the subtrahend is placed first, because it has a known length of 8 bytes.
-/// This means that you ultimately pass in `[ix,b:u64,pk,a:i64]` and get back
-/// `[a - b as i64]`
+/// Note that we only specify the minuend `m` offset with an initial u32 big
+/// endian encoded into 4B. Next is the public key, then the minuend starting at
+/// `m` and ending at `input.len() - 8` non-inclusive. Finally the last 8B are
+/// the subtrahend `s` encoded as a u64 big endian. The response is the
+/// bincode-encoded encrypted difference `m - (s as i64)`.
 fn fhe_subtract_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op_plain(
         COST_FHE_SUBTRACT_PLAIN,
@@ -216,8 +218,8 @@ where
 /// Expects `input` with encoding (not to scale!)
 ///
 /// ```text
-/// <---- 4B ----><-- 8B ----><~---------------~>
-/// [Arg 1 offset][Arg 2: u64][Public key][Arg 1]
+/// <---- 4B ----><~---------------~><- 8B ->
+/// [Arg 1 offset][Public key][Arg 1][Arg 2 ]
 /// ```
 ///
 /// where argument 1 is a ciphertext, argument 2 is a plaintext u64, and both
@@ -234,14 +236,15 @@ where
         return Err(FheErr::UnexpectedEOF.into());
     }
     let ix = &input[..4];
-    let arg_2 = &input[4..12];
     let ix: usize = u32::from_be_bytes(ix.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
         .try_into()
         .map_err(|_| FheErr::PlatformArchitecture)?;
-    let arg_2: u64 = u64::from_be_bytes(arg_2.try_into().map_err(|_| FheErr::UnexpectedEOF)?);
 
-    let pubk = bincode::deserialize(&input[12..ix]).map_err(|_| FheErr::InvalidEncoding)?;
-    let arg_1 = bincode::deserialize(&input[ix..]).map_err(|_| FheErr::InvalidEncoding)?;
+    let pubk = bincode::deserialize(&input[4..ix]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg_1 =
+        bincode::deserialize(&input[ix..input.len() - 8]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg_2 = &input[input.len() - 8..];
+    let arg_2: u64 = u64::from_be_bytes(arg_2.try_into().map_err(|_| FheErr::UnexpectedEOF)?);
     let arg_2: i64 = arg_2.try_into().map_err(|_| FheErr::Overflow)?;
 
     let result = op(arg_1, arg_2.into(), pubk).unwrap();
@@ -475,11 +478,11 @@ mod tests {
 
         // Build input bytes
         let mut input: Vec<u8> = Vec::new();
-        let offset = 12 + pubk_enc.len();
+        let offset = 4 + pubk_enc.len();
         input.extend((offset as u32).to_be_bytes());
-        input.extend((b as u64).to_be_bytes());
         input.extend(pubk_enc);
         input.extend(a_enc);
+        input.extend((b as u64).to_be_bytes());
 
         // run precompile
         let PrecompileOutput { output, .. } = fhe_op(&input, op_cost).unwrap();
