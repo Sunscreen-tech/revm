@@ -240,7 +240,7 @@ where
         .map_err(|_| FheErr::PlatformArchitecture)?;
     let arg_2: u64 = u64::from_be_bytes(arg_2.try_into().map_err(|_| FheErr::UnexpectedEOF)?);
 
-    let pubk = bincode::deserialize(&input[8..ix]).map_err(|_| FheErr::InvalidEncoding)?;
+    let pubk = bincode::deserialize(&input[12..ix]).map_err(|_| FheErr::InvalidEncoding)?;
     let arg_1 = bincode::deserialize(&input[ix..]).map_err(|_| FheErr::InvalidEncoding)?;
     let arg_2: i64 = arg_2.try_into().map_err(|_| FheErr::Overflow)?;
 
@@ -360,17 +360,33 @@ mod tests {
 
     #[test]
     fn precompile_fhe_add_works() -> Result<(), RuntimeError> {
-        precompile_fhe_op_works(fhe_add, COST_FHE_ADD, 4, 5, 9)
+        precompile_fhe_op_works(fhe_add, COST_FHE_ADD, 4, 5, 4 + 5)
     }
 
     #[test]
     fn precompile_fhe_multiply_works() -> Result<(), RuntimeError> {
-        precompile_fhe_op_works(fhe_multiply, COST_FHE_MULTIPLY, 4, 5, 20)
+        precompile_fhe_op_works(fhe_multiply, COST_FHE_MULTIPLY, 4, 5, 4 * 5)
     }
 
     #[test]
     fn precompile_fhe_subtract_works() -> Result<(), RuntimeError> {
-        precompile_fhe_op_works(fhe_subtract, COST_FHE_SUBTRACT, 10, 8, 2)
+        precompile_fhe_op_works(fhe_subtract, COST_FHE_SUBTRACT, 11341, 134, 11341 - 134)
+    }
+
+    #[test]
+    fn precompile_fhe_add_plain_works() -> Result<(), RuntimeError> {
+        precompile_fhe_plain_op_works(fhe_add_plain, COST_FHE_ADD_PLAIN, 82, 145, 82 + 145)
+    }
+
+    #[test]
+    fn precompile_fhe_subtract_plain_works() -> Result<(), RuntimeError> {
+        precompile_fhe_plain_op_works(
+            fhe_subtract_plain,
+            COST_FHE_SUBTRACT_PLAIN,
+            315,
+            64,
+            315 - 64,
+        )
     }
 
     #[test]
@@ -434,6 +450,44 @@ mod tests {
         let c: Signed = RUNTIME.decrypt(&c_encrypted, &private_key)?;
 
         assert_eq!(cost, op_cost);
+        assert_eq!(expected, <Signed as Into<i64>>::into(c));
+        Ok(())
+    }
+
+    fn precompile_fhe_plain_op_works<F>(
+        fhe_op: F,
+        op_cost: u64,
+        a: i64,
+        b: i64,
+        expected: i64,
+    ) -> Result<(), RuntimeError>
+    where
+        F: Fn(&[u8], u64) -> PrecompileResult,
+    {
+        let (public_key, private_key) = RUNTIME.generate_keys()?;
+
+        // Encrypt a
+        let a_encrypted = RUNTIME.encrypt(Signed::from(a), &public_key)?;
+
+        // Encode values
+        let pubk_enc = bincode::serialize(&public_key).unwrap();
+        let a_enc = bincode::serialize(&a_encrypted).unwrap();
+
+        // Build input bytes
+        let mut input: Vec<u8> = Vec::new();
+        let offset = 12 + pubk_enc.len();
+        input.extend((offset as u32).to_be_bytes());
+        input.extend((b as u64).to_be_bytes());
+        input.extend(pubk_enc);
+        input.extend(a_enc);
+
+        // run precompile
+        let PrecompileOutput { output, .. } = fhe_op(&input, op_cost).unwrap();
+        // decode it
+        let c_encrypted = bincode::deserialize(&output).unwrap();
+        // decrypt it
+        let c: Signed = RUNTIME.decrypt(&c_encrypted, &private_key)?;
+
         assert_eq!(expected, <Signed as Into<i64>>::into(c));
         Ok(())
     }
