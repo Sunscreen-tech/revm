@@ -84,7 +84,12 @@ pub const FHE_ENC_ZERO: (Address, Precompile) = (
 /// [Addend offsets][Public key][Addend 1][Addend 2]
 /// ```
 fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
-    fhe_binary_op(COST_FHE_ADD, |a, b, k| run(add, a, b, k), input, gas_limit)
+    fhe_binary_op(
+        COST_FHE_ADD,
+        |a, b, key| run(add, a, b, key),
+        input,
+        gas_limit,
+    )
 }
 
 /// Expects
@@ -96,7 +101,7 @@ fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_subtract(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(
         COST_FHE_SUBTRACT,
-        |a, b, k| run(subtract, a, b, k),
+        |a, b, key| run(subtract, a, b, key),
         input,
         gas_limit,
     )
@@ -111,7 +116,7 @@ fn fhe_subtract(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(
         COST_FHE_MULTIPLY,
-        |a, b, k| run(multiply, a, b, k),
+        |a, b, key| run(multiply, a, b, key),
         input,
         gas_limit,
     )
@@ -126,7 +131,7 @@ fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op_plain(
         COST_FHE_ADD_PLAIN,
-        |a, b, k| run(add_plain, a, b, k),
+        |a, b, key| run(add_plain, a, b, key),
         input,
         gas_limit,
     )
@@ -147,7 +152,7 @@ fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_subtract_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op_plain(
         COST_FHE_SUBTRACT_PLAIN,
-        |a, b, k| run(subtract_plain, a, b, k),
+        |a, b, key| run(subtract_plain, a, b, key),
         input,
         gas_limit,
     )
@@ -196,12 +201,11 @@ where
     }
     let ix_1 = &input[..4];
     let ix_2 = &input[4..8];
-    let ix_1: usize = u32::from_be_bytes(ix_1.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
-        .try_into()
-        .map_err(|_| FheErr::PlatformArchitecture)?;
-    let ix_2: usize = u32::from_be_bytes(ix_2.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
-        .try_into()
-        .map_err(|_| FheErr::PlatformArchitecture)?;
+    // The following unwraps are safe due to length check above
+    let ix_1 = u32::from_be_bytes(ix_1.try_into().unwrap());
+    let ix_2 = u32::from_be_bytes(ix_2.try_into().unwrap());
+    let ix_1: usize = ix_1.try_into().map_err(|_| FheErr::PlatformArchitecture)?;
+    let ix_2: usize = ix_2.try_into().map_err(|_| FheErr::PlatformArchitecture)?;
 
     let pubk = bincode::deserialize(&input[8..ix_1]).map_err(|_| FheErr::InvalidEncoding)?;
     let arg1 = bincode::deserialize(&input[ix_1..ix_2]).map_err(|_| FheErr::InvalidEncoding)?;
@@ -236,9 +240,9 @@ where
         return Err(FheErr::UnexpectedEOF.into());
     }
     let ix = &input[..4];
-    let ix: usize = u32::from_be_bytes(ix.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
-        .try_into()
-        .map_err(|_| FheErr::PlatformArchitecture)?;
+    // The following unwrap is safe due to length check above
+    let ix = u32::from_be_bytes(ix.try_into().unwrap());
+    let ix: usize = ix.try_into().map_err(|_| FheErr::PlatformArchitecture)?;
 
     let pubk = bincode::deserialize(&input[4..ix]).map_err(|_| FheErr::InvalidEncoding)?;
     let arg_1 =
