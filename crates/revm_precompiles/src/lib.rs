@@ -166,6 +166,8 @@ impl Precompiles {
                 vec![
                     fhe::FHE_ADD,
                     fhe::FHE_SUBTRACT,
+                    fhe::FHE_ADD_PLAIN,
+                    fhe::FHE_SUBTRACT_PLAIN,
                     fhe::FHE_MULTIPLY,
                     fhe::FHE_ENC_ZERO,
                     // EIP-2565: ModExp Gas Cost.

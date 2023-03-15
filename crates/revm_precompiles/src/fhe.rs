@@ -7,11 +7,14 @@ use lazy_static::lazy_static;
 use sunscreen::{
     fhe_program,
     types::{bfv::Signed, Cipher},
-    Application, Ciphertext, Compiler, Params, PublicKey, Runtime, RuntimeError, SchemeType,
+    Application, Ciphertext, Compiler, FheProgramInput, Params, PublicKey, Runtime, RuntimeError,
+    SchemeType,
 };
 
 pub const COST_FHE_ADD: u64 = 200;
+pub const COST_FHE_ADD_PLAIN: u64 = 200;
 pub const COST_FHE_SUBTRACT: u64 = 200;
+pub const COST_FHE_SUBTRACT_PLAIN: u64 = 200;
 pub const COST_FHE_MULTIPLY: u64 = 1000;
 pub const COST_FHE_ENC_ZERO: u64 = 100;
 
@@ -22,7 +25,9 @@ lazy_static! {
     static ref FHE_APP: Application = {
         Compiler::new()
             .fhe_program(add)
+            .fhe_program(add_plain)
             .fhe_program(subtract)
+            .fhe_program(subtract_plain)
             .fhe_program(multiply)
             .with_params(&Params {
                 lattice_dimension: 4096,
@@ -36,6 +41,8 @@ lazy_static! {
     };
 }
 
+// For people making other contracts, allow passing in the program itself
+// Will require on the fly runtime
 //pub const FHE_ARBITRARY: (B160, Precompile) = (
 //u64_to_b160(204), // 0xcc
 //Precompile::Custom(fhe_arbitrary as CustomPrecompileFn),
@@ -45,19 +52,29 @@ pub const FHE_ADD: (Address, Precompile) = (
     Precompile::Custom(fhe_add as CustomPrecompileFn),
 );
 
-pub const FHE_SUBTRACT: (Address, Precompile) = (
+pub const FHE_ADD_PLAIN: (Address, Precompile) = (
     crate::make_address(0, 206), // 0xce
+    Precompile::Custom(fhe_add_plain as CustomPrecompileFn),
+);
+
+pub const FHE_SUBTRACT: (Address, Precompile) = (
+    crate::make_address(0, 207), // 0xcf
     Precompile::Custom(fhe_subtract as CustomPrecompileFn),
 );
 
-pub const FHE_ENC_ZERO: (Address, Precompile) = (
-    crate::make_address(0, 207), // 0xcf
-    Precompile::Custom(fhe_enc_zero as CustomPrecompileFn),
+pub const FHE_SUBTRACT_PLAIN: (Address, Precompile) = (
+    crate::make_address(0, 208), // 0xd0
+    Precompile::Custom(fhe_subtract_plain as CustomPrecompileFn),
 );
 
 pub const FHE_MULTIPLY: (Address, Precompile) = (
-    crate::make_address(0, 208), // 0xd0
+    crate::make_address(0, 209), // 0xd1
     Precompile::Custom(fhe_multiply as CustomPrecompileFn),
+);
+
+pub const FHE_ENC_ZERO: (Address, Precompile) = (
+    crate::make_address(0, 210), // 0xd2
+    Precompile::Custom(fhe_enc_zero as CustomPrecompileFn),
 );
 
 /// Expects
@@ -90,6 +107,35 @@ fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(COST_FHE_MULTIPLY, run_multiply, input, gas_limit)
 }
 
+/// Expects (not to scale!)
+///
+/// ```text
+/// <------ 4B -----><-- 8B --><~------------------~>
+/// [Addend 2 offset][Addend 1][Public key][Addend 2]
+/// ```
+fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
+    fhe_binary_op_plain(COST_FHE_ADD_PLAIN, run_add_plain, input, gas_limit)
+}
+
+/// Expects (not to scale!)
+///
+/// ```text
+/// <----- 4B -----><-- 8B ----><~-----------------~>
+/// [Minuend offset][Subtrahend][Public key][Minuend]
+/// ```
+///
+/// Note that the subtrahend is placed first, because it has a known length of 8 bytes.
+/// This means that you ultimately pass in `[ix,b:u64,pk,a:i64]` and get back
+/// `[a - b as i64]`
+fn fhe_subtract_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
+    fhe_binary_op_plain(
+        COST_FHE_SUBTRACT_PLAIN,
+        run_subtract_plain,
+        input,
+        gas_limit,
+    )
+}
+
 /// Expects
 ///
 /// ```text
@@ -118,6 +164,10 @@ fn fhe_enc_zero(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// <- 2 * 4B -> <~----------------------->
 /// [Arg offsets][Public key][Arg 1][Arg 2]
 /// ```
+///
+/// where arguments are ciphertexts and public key and ciphertexts are bincode
+/// encoded. Returns the bincode encoded, encrypted ciphertext resulting from
+/// `op(arg1, arg2)`.
 fn fhe_binary_op<F>(op_cost: u64, op: F, input: &[u8], gas_limit: u64) -> PrecompileResult
 where
     F: FnOnce(PublicKey, Ciphertext, Ciphertext) -> Result<Ciphertext, RuntimeError>,
@@ -133,7 +183,7 @@ where
     let ix_1: usize = u32::from_be_bytes(ix_1.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
         .try_into()
         .map_err(|_| FheErr::PlatformArchitecture)?;
-    let ix_2: usize = u32::from_be_bytes(ix_2.try_into().unwrap())
+    let ix_2: usize = u32::from_be_bytes(ix_2.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
         .try_into()
         .map_err(|_| FheErr::PlatformArchitecture)?;
 
@@ -149,10 +199,50 @@ where
     ))
 }
 
+/// Expects `input` with encoding (not to scale!)
+///
+/// ```text
+/// <---- 4B ----><-- 8B ----><~---------------~>
+/// [Arg 1 offset][Arg 2: u64][Public key][Arg 1]
+/// ```
+///
+/// where argument 1 is a ciphertext, argument 2 is a plaintext u64, and both
+/// the ciphertext and public key are bincode encoded. The resulting returned
+/// ciphertext is bincode encoded.
+fn fhe_binary_op_plain<F>(op_cost: u64, op: F, input: &[u8], gas_limit: u64) -> PrecompileResult
+where
+    F: FnOnce(PublicKey, Ciphertext, Signed) -> Result<Ciphertext, RuntimeError>,
+{
+    if op_cost > gas_limit {
+        return Err(Error::OutOfGas);
+    }
+    if input.len() < 12 {
+        return Err(FheErr::UnexpectedEOF.into());
+    }
+    let ix = &input[..4];
+    let arg_2 = &input[4..12];
+    let ix: usize = u32::from_be_bytes(ix.try_into().map_err(|_| FheErr::UnexpectedEOF)?)
+        .try_into()
+        .map_err(|_| FheErr::PlatformArchitecture)?;
+    let arg_2: u64 = u64::from_be_bytes(arg_2.try_into().map_err(|_| FheErr::UnexpectedEOF)?);
+
+    let pubk = bincode::deserialize(&input[8..ix]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg_1 = bincode::deserialize(&input[ix..]).map_err(|_| FheErr::InvalidEncoding)?;
+    let arg_2: i64 = arg_2.try_into().map_err(|_| FheErr::Overflow)?;
+
+    let result = op(pubk, arg_1, arg_2.into()).unwrap();
+
+    Ok(PrecompileOutput::without_logs(
+        op_cost,
+        bincode::serialize(&result).unwrap(),
+    ))
+}
+
 enum FheErr {
     UnexpectedEOF,
     PlatformArchitecture,
     InvalidEncoding,
+    Overflow,
     SunscreenError(RuntimeError),
 }
 
@@ -164,38 +254,11 @@ impl From<FheErr> for Error {
                 Error::Other("Validator needs at least 32B architecture".into())
             }
             FheErr::InvalidEncoding => Error::Other("Invalid bincode encoding".into()),
+            FheErr::Overflow => Error::Other("i64 overflow".into()),
             FheErr::SunscreenError(e) => Error::Other(format!("Sunscreen error: {:?}", e).into()),
         }
     }
 }
-
-/// Expected format for `input`:
-/// 1B: # of args -> N
-/// 2(4B ~ u32) - N(4B ~ u32): for each arg, an offset into bytes array
-/// <args>
-/// <possibly padding?>
-/// <serialized program>
-// TODO finish this function
-//fn fhe_arbitrary(input: &[u8], gas_limit: u64) -> PrecompileResult {
-//// TODO probably some variability to cost based on input size?
-//let cost = 200;
-//if cost > gas_limit {
-//return Err(Error::OutOfGas);
-//}
-
-//let num_args = input[0] as usize;
-//let mut offsets = Vec::with_capacity(num_args);
-//let mut args = Vec::with_capacity(num_args);
-//for ix in 1..=num_args + 1 {
-//}
-//for w in offsets.windows(2) {
-//}
-
-//let program = args.pop();
-
-//let output = todo!(); // call fhe(args, program)
-//Ok((cost, output))
-//}
 
 fn run_add(
     public_key: PublicKey,
@@ -205,6 +268,18 @@ fn run_add(
     let runtime = Runtime::new(FHE_APP.params()).unwrap();
     runtime
         .run(FHE_APP.get_program(add).unwrap(), vec![a, b], &public_key)
+        .map(|mut out| out.pop().unwrap())
+}
+
+fn run_add_plain(
+    public_key: PublicKey,
+    a: Ciphertext,
+    b: Signed,
+) -> Result<Ciphertext, RuntimeError> {
+    let runtime = Runtime::new(FHE_APP.params()).unwrap();
+    let args: Vec<FheProgramInput> = vec![a.into(), b.into()];
+    runtime
+        .run(FHE_APP.get_program(add_plain).unwrap(), args, &public_key)
         .map(|mut out| out.pop().unwrap())
 }
 
@@ -218,6 +293,22 @@ fn run_subtract(
         .run(
             FHE_APP.get_program(subtract).unwrap(),
             vec![a, b],
+            &public_key,
+        )
+        .map(|mut out| out.pop().unwrap())
+}
+
+fn run_subtract_plain(
+    public_key: PublicKey,
+    a: Ciphertext,
+    b: Signed,
+) -> Result<Ciphertext, RuntimeError> {
+    let runtime = Runtime::new(FHE_APP.params()).unwrap();
+    let args: Vec<FheProgramInput> = vec![a.into(), b.into()];
+    runtime
+        .run(
+            FHE_APP.get_program(subtract_plain).unwrap(),
+            args,
             &public_key,
         )
         .map(|mut out| out.pop().unwrap())
@@ -245,9 +336,21 @@ fn add(a: Cipher<Signed>, b: Cipher<Signed>) -> Cipher<Signed> {
     a + b
 }
 
+/// Addition with plaintext
+#[fhe_program(scheme = "bfv")]
+fn add_plain(a: Cipher<Signed>, b: Signed) -> Cipher<Signed> {
+    a + b
+}
+
 /// Subtraction
 #[fhe_program(scheme = "bfv")]
 fn subtract(a: Cipher<Signed>, b: Cipher<Signed>) -> Cipher<Signed> {
+    a - b
+}
+
+/// Subtraction with plaintext
+#[fhe_program(scheme = "bfv")]
+fn subtract_plain(a: Cipher<Signed>, b: Signed) -> Cipher<Signed> {
     a - b
 }
 
