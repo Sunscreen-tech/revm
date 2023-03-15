@@ -84,7 +84,7 @@ pub const FHE_ENC_ZERO: (Address, Precompile) = (
 /// [Addend offsets][Public key][Addend 1][Addend 2]
 /// ```
 fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
-    fhe_binary_op(COST_FHE_ADD, run_add, input, gas_limit)
+    fhe_binary_op(COST_FHE_ADD, |a, b, k| run(add, a, b, k), input, gas_limit)
 }
 
 /// Expects
@@ -94,7 +94,12 @@ fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// [ Arg offsets  ][Public key][Minuend][Subtrahend]
 /// ```
 fn fhe_subtract(input: &[u8], gas_limit: u64) -> PrecompileResult {
-    fhe_binary_op(COST_FHE_SUBTRACT, run_subtract, input, gas_limit)
+    fhe_binary_op(
+        COST_FHE_SUBTRACT,
+        |a, b, k| run(subtract, a, b, k),
+        input,
+        gas_limit,
+    )
 }
 
 /// Expects
@@ -104,7 +109,12 @@ fn fhe_subtract(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// [Factor offsets][Public key][Factor 1][Factor 2]
 /// ```
 fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
-    fhe_binary_op(COST_FHE_MULTIPLY, run_multiply, input, gas_limit)
+    fhe_binary_op(
+        COST_FHE_MULTIPLY,
+        |a, b, k| run(multiply, a, b, k),
+        input,
+        gas_limit,
+    )
 }
 
 /// Expects (not to scale!)
@@ -114,7 +124,12 @@ fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// [Addend 2 offset][Addend 1][Public key][Addend 2]
 /// ```
 fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
-    fhe_binary_op_plain(COST_FHE_ADD_PLAIN, run_add_plain, input, gas_limit)
+    fhe_binary_op_plain(
+        COST_FHE_ADD_PLAIN,
+        |a, b, k| run(add_plain, a, b, k),
+        input,
+        gas_limit,
+    )
 }
 
 /// Expects (not to scale!)
@@ -130,7 +145,7 @@ fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_subtract_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op_plain(
         COST_FHE_SUBTRACT_PLAIN,
-        run_subtract_plain,
+        |a, b, k| run(subtract_plain, a, b, k),
         input,
         gas_limit,
     )
@@ -169,7 +184,7 @@ fn fhe_enc_zero(input: &[u8], gas_limit: u64) -> PrecompileResult {
 /// `op(arg1, arg2)`.
 fn fhe_binary_op<F>(op_cost: u64, op: F, input: &[u8], gas_limit: u64) -> PrecompileResult
 where
-    F: FnOnce(PublicKey, Ciphertext, Ciphertext) -> Result<Ciphertext, RuntimeError>,
+    F: FnOnce(Ciphertext, Ciphertext, PublicKey) -> Result<Ciphertext, RuntimeError>,
 {
     if op_cost > gas_limit {
         return Err(Error::OutOfGas);
@@ -190,7 +205,7 @@ where
     let arg1 = bincode::deserialize(&input[ix_1..ix_2]).map_err(|_| FheErr::InvalidEncoding)?;
     let arg2 = bincode::deserialize(&input[ix_2..]).map_err(|_| FheErr::InvalidEncoding)?;
 
-    let result = op(pubk, arg1, arg2).unwrap();
+    let result = op(arg1, arg2, pubk).unwrap();
 
     Ok(PrecompileOutput::without_logs(
         op_cost,
@@ -210,7 +225,7 @@ where
 /// ciphertext is bincode encoded.
 fn fhe_binary_op_plain<F>(op_cost: u64, op: F, input: &[u8], gas_limit: u64) -> PrecompileResult
 where
-    F: FnOnce(PublicKey, Ciphertext, Signed) -> Result<Ciphertext, RuntimeError>,
+    F: FnOnce(Ciphertext, Signed, PublicKey) -> Result<Ciphertext, RuntimeError>,
 {
     if op_cost > gas_limit {
         return Err(Error::OutOfGas);
@@ -229,7 +244,7 @@ where
     let arg_1 = bincode::deserialize(&input[ix..]).map_err(|_| FheErr::InvalidEncoding)?;
     let arg_2: i64 = arg_2.try_into().map_err(|_| FheErr::Overflow)?;
 
-    let result = op(pubk, arg_1, arg_2.into()).unwrap();
+    let result = op(arg_1, arg_2.into(), pubk).unwrap();
 
     Ok(PrecompileOutput::without_logs(
         op_cost,
@@ -259,65 +274,16 @@ impl From<FheErr> for Error {
     }
 }
 
-fn run_add(
+fn run(
+    program: impl AsRef<str>,
+    a: impl Into<FheProgramInput>,
+    b: impl Into<FheProgramInput>,
     public_key: PublicKey,
-    a: Ciphertext,
-    b: Ciphertext,
-) -> Result<Ciphertext, RuntimeError> {
-    RUNTIME
-        .run(FHE_APP.get_program(add).unwrap(), vec![a, b], &public_key)
-        .map(|mut out| out.pop().unwrap())
-}
-
-fn run_add_plain(
-    public_key: PublicKey,
-    a: Ciphertext,
-    b: Signed,
-) -> Result<Ciphertext, RuntimeError> {
-    let args: Vec<FheProgramInput> = vec![a.into(), b.into()];
-    RUNTIME
-        .run(FHE_APP.get_program(add_plain).unwrap(), args, &public_key)
-        .map(|mut out| out.pop().unwrap())
-}
-
-fn run_subtract(
-    public_key: PublicKey,
-    a: Ciphertext,
-    b: Ciphertext,
 ) -> Result<Ciphertext, RuntimeError> {
     RUNTIME
         .run(
-            FHE_APP.get_program(subtract).unwrap(),
-            vec![a, b],
-            &public_key,
-        )
-        .map(|mut out| out.pop().unwrap())
-}
-
-fn run_subtract_plain(
-    public_key: PublicKey,
-    a: Ciphertext,
-    b: Signed,
-) -> Result<Ciphertext, RuntimeError> {
-    let args: Vec<FheProgramInput> = vec![a.into(), b.into()];
-    RUNTIME
-        .run(
-            FHE_APP.get_program(subtract_plain).unwrap(),
-            args,
-            &public_key,
-        )
-        .map(|mut out| out.pop().unwrap())
-}
-
-fn run_multiply(
-    public_key: PublicKey,
-    a: Ciphertext,
-    b: Ciphertext,
-) -> Result<Ciphertext, RuntimeError> {
-    RUNTIME
-        .run(
-            FHE_APP.get_program(multiply).unwrap(),
-            vec![a, b],
+            FHE_APP.get_program(program).unwrap(),
+            vec![a.into(), b.into()],
             &public_key,
         )
         .map(|mut out| out.pop().unwrap())
@@ -356,7 +322,7 @@ fn multiply(a: Cipher<Signed>, b: Cipher<Signed>) -> Cipher<Signed> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sunscreen::{types::bfv::Signed, Runtime, RuntimeError};
+    use sunscreen::{types::bfv::Signed, RuntimeError};
 
     #[test]
     fn fhe_add_works() -> Result<(), RuntimeError> {
@@ -365,7 +331,7 @@ mod tests {
         let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
         let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
-        let result = run_add(public_key, a, b)?;
+        let result = run(add, a, b, public_key)?;
         let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 20_i64);
         Ok(())
@@ -378,7 +344,7 @@ mod tests {
         let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
         let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
-        let result = run_multiply(public_key, a, b)?;
+        let result = run(multiply, a, b, public_key)?;
         let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 64_i64);
         Ok(())
