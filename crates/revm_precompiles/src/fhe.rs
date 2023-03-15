@@ -20,7 +20,6 @@ pub const COST_FHE_ENC_ZERO: u64 = 100;
 
 // TODO This should maybe go in a separate crate that the wallet imports as
 // well, to ensure the same params are used.
-// TODO make a static Runtime as well
 lazy_static! {
     static ref FHE_APP: Application = {
         Compiler::new()
@@ -39,6 +38,7 @@ lazy_static! {
             .compile()
             .unwrap()
     };
+    static ref RUNTIME: Runtime = Runtime::new(FHE_APP.params()).unwrap();
 }
 
 // For people making other contracts, allow passing in the program itself
@@ -147,8 +147,7 @@ fn fhe_enc_zero(input: &[u8], gas_limit: u64) -> PrecompileResult {
         return Err(Error::OutOfGas);
     }
     let pubk = bincode::deserialize(input).map_err(|_| FheErr::InvalidEncoding)?;
-    let runtime = Runtime::new(FHE_APP.params()).map_err(FheErr::SunscreenError)?;
-    let zero = runtime
+    let zero = RUNTIME
         .encrypt(Signed::from(0), &pubk)
         .map_err(FheErr::SunscreenError)?;
 
@@ -265,8 +264,7 @@ fn run_add(
     a: Ciphertext,
     b: Ciphertext,
 ) -> Result<Ciphertext, RuntimeError> {
-    let runtime = Runtime::new(FHE_APP.params()).unwrap();
-    runtime
+    RUNTIME
         .run(FHE_APP.get_program(add).unwrap(), vec![a, b], &public_key)
         .map(|mut out| out.pop().unwrap())
 }
@@ -276,9 +274,8 @@ fn run_add_plain(
     a: Ciphertext,
     b: Signed,
 ) -> Result<Ciphertext, RuntimeError> {
-    let runtime = Runtime::new(FHE_APP.params()).unwrap();
     let args: Vec<FheProgramInput> = vec![a.into(), b.into()];
-    runtime
+    RUNTIME
         .run(FHE_APP.get_program(add_plain).unwrap(), args, &public_key)
         .map(|mut out| out.pop().unwrap())
 }
@@ -288,8 +285,7 @@ fn run_subtract(
     a: Ciphertext,
     b: Ciphertext,
 ) -> Result<Ciphertext, RuntimeError> {
-    let runtime = Runtime::new(FHE_APP.params()).unwrap();
-    runtime
+    RUNTIME
         .run(
             FHE_APP.get_program(subtract).unwrap(),
             vec![a, b],
@@ -303,9 +299,8 @@ fn run_subtract_plain(
     a: Ciphertext,
     b: Signed,
 ) -> Result<Ciphertext, RuntimeError> {
-    let runtime = Runtime::new(FHE_APP.params()).unwrap();
     let args: Vec<FheProgramInput> = vec![a.into(), b.into()];
-    runtime
+    RUNTIME
         .run(
             FHE_APP.get_program(subtract_plain).unwrap(),
             args,
@@ -319,9 +314,7 @@ fn run_multiply(
     a: Ciphertext,
     b: Ciphertext,
 ) -> Result<Ciphertext, RuntimeError> {
-    // TODO does it make sense to keep a singleton/oncecell runtime as well?
-    let runtime = Runtime::new(FHE_APP.params()).unwrap();
-    runtime
+    RUNTIME
         .run(
             FHE_APP.get_program(multiply).unwrap(),
             vec![a, b],
@@ -367,28 +360,26 @@ mod tests {
 
     #[test]
     fn fhe_add_works() -> Result<(), RuntimeError> {
-        let runtime = Runtime::new(FHE_APP.params())?;
-        let (public_key, private_key) = runtime.generate_keys()?;
+        let (public_key, private_key) = RUNTIME.generate_keys()?;
 
-        let a = runtime.encrypt(Signed::from(16), &public_key)?;
-        let b = runtime.encrypt(Signed::from(4), &public_key)?;
+        let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
+        let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
         let result = run_add(public_key, a, b)?;
-        let c: Signed = runtime.decrypt(&result, &private_key)?;
+        let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 20_i64);
         Ok(())
     }
 
     #[test]
     fn fhe_multiply_works() -> Result<(), RuntimeError> {
-        let runtime = Runtime::new(FHE_APP.params())?;
-        let (public_key, private_key) = runtime.generate_keys()?;
+        let (public_key, private_key) = RUNTIME.generate_keys()?;
 
-        let a = runtime.encrypt(Signed::from(16), &public_key)?;
-        let b = runtime.encrypt(Signed::from(4), &public_key)?;
+        let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
+        let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
         let result = run_multiply(public_key, a, b)?;
-        let c: Signed = runtime.decrypt(&result, &private_key)?;
+        let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 64_i64);
         Ok(())
     }
@@ -418,8 +409,7 @@ mod tests {
 
     #[test]
     fn precompile_fhe_enc_zero_works() -> Result<(), RuntimeError> {
-        let runtime = Runtime::new(FHE_APP.params())?;
-        let (public_key, private_key) = runtime.generate_keys()?;
+        let (public_key, private_key) = RUNTIME.generate_keys()?;
 
         // Encode pubk
         let pubk_enc = bincode::serialize(&public_key).unwrap();
@@ -429,7 +419,7 @@ mod tests {
         // decode it
         let c_encrypted = bincode::deserialize(&output).unwrap();
         // decrypt it
-        let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
+        let c: Signed = RUNTIME.decrypt(&c_encrypted, &private_key)?;
 
         assert_eq!(0, <Signed as Into<i64>>::into(c));
         Ok(())
@@ -445,12 +435,11 @@ mod tests {
     where
         F: Fn(&[u8], u64) -> PrecompileResult,
     {
-        let runtime = Runtime::new(FHE_APP.params())?;
-        let (public_key, private_key) = runtime.generate_keys()?;
+        let (public_key, private_key) = RUNTIME.generate_keys()?;
 
         // Encrypt values
-        let a_encrypted = runtime.encrypt(Signed::from(a), &public_key)?;
-        let b_encrypted = runtime.encrypt(Signed::from(b), &public_key)?;
+        let a_encrypted = RUNTIME.encrypt(Signed::from(a), &public_key)?;
+        let b_encrypted = RUNTIME.encrypt(Signed::from(b), &public_key)?;
 
         // Encode values
         let pubk_enc = bincode::serialize(&public_key).unwrap();
@@ -476,7 +465,7 @@ mod tests {
         // decode it
         let c_encrypted = bincode::deserialize(&output).unwrap();
         // decrypt it
-        let c: Signed = runtime.decrypt(&c_encrypted, &private_key)?;
+        let c: Signed = RUNTIME.decrypt(&c_encrypted, &private_key)?;
 
         assert_eq!(cost, op_cost);
         assert_eq!(expected, <Signed as Into<i64>>::into(c));
