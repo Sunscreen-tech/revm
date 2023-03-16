@@ -86,7 +86,7 @@ pub const FHE_ENC_ZERO: (Address, Precompile) = (
 fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(
         COST_FHE_ADD,
-        |a, b, key| run(add, a, b, key),
+        |a, b, key| run(add, a, b, &key),
         input,
         gas_limit,
     )
@@ -101,7 +101,7 @@ fn fhe_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_subtract(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(
         COST_FHE_SUBTRACT,
-        |a, b, key| run(subtract, a, b, key),
+        |a, b, key| run(subtract, a, b, &key),
         input,
         gas_limit,
     )
@@ -116,7 +116,7 @@ fn fhe_subtract(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op(
         COST_FHE_MULTIPLY,
-        |a, b, key| run(multiply, a, b, key),
+        |a, b, key| run(multiply, a, b, &key),
         input,
         gas_limit,
     )
@@ -131,7 +131,7 @@ fn fhe_multiply(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op_plain(
         COST_FHE_ADD_PLAIN,
-        |a, b, key| run(add_plain, a, b, key),
+        |a, b, key| run(add_plain, a, b, &key),
         input,
         gas_limit,
     )
@@ -152,7 +152,7 @@ fn fhe_add_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
 fn fhe_subtract_plain(input: &[u8], gas_limit: u64) -> PrecompileResult {
     fhe_binary_op_plain(
         COST_FHE_SUBTRACT_PLAIN,
-        |a, b, key| run(subtract_plain, a, b, key),
+        |a, b, key| run(subtract_plain, a, b, &key),
         input,
         gas_limit,
     )
@@ -285,7 +285,7 @@ fn run(
     program: impl AsRef<str>,
     a: impl Into<FheProgramInput>,
     b: impl Into<FheProgramInput>,
-    public_key: PublicKey,
+    public_key: &PublicKey,
 ) -> Result<Ciphertext, RuntimeError> {
     RUNTIME
         .run(
@@ -338,7 +338,7 @@ mod tests {
         let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
         let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
-        let result = run(add, a, b, public_key)?;
+        let result = run(add, a, b, &public_key)?;
         let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 20_i64);
         Ok(())
@@ -351,7 +351,7 @@ mod tests {
         let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
         let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
-        let result = run(multiply, a, b, public_key)?;
+        let result = run(multiply, a, b, &public_key)?;
         let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 64_i64);
         Ok(())
