@@ -1,15 +1,15 @@
 use std;
 
+use super::{CustomPrecompileFn, Precompile, PrecompileResult, Return as Error};
 use crate::{Address, PrecompileOutput};
 
-use super::{CustomPrecompileFn, Precompile, PrecompileResult, Return as Error};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use sunscreen::{
     fhe_program,
     types::{bfv::Signed, Cipher},
-    Application, Ciphertext, Compiler, FheProgramInput, Params, PublicKey, Runtime, RuntimeError,
-    SchemeType,
+    Application, Ciphertext, Compiler, FheProgramInput, PublicKey, RuntimeError,
 };
+use sunscreen_params::{SUNSCREEN_PARAMS, SUNSCREEN_RUNTIME};
 
 pub const COST_FHE_ADD: u64 = 200;
 pub const COST_FHE_ADD_PLAIN: u64 = 200;
@@ -20,26 +20,17 @@ pub const COST_FHE_ENC_ZERO: u64 = 100;
 
 // TODO This should maybe go in a separate crate that the wallet imports as
 // well, to ensure the same params are used.
-lazy_static! {
-    static ref FHE_APP: Application = {
-        Compiler::new()
-            .fhe_program(add)
-            .fhe_program(add_plain)
-            .fhe_program(subtract)
-            .fhe_program(subtract_plain)
-            .fhe_program(multiply)
-            .with_params(&Params {
-                lattice_dimension: 4096,
-                coeff_modulus: vec![0xffffee001, 0xffffc4001, 0x1ffffe0001],
-                plain_modulus: 4_096,
-                scheme_type: SchemeType::Bfv,
-                security_level: sunscreen::SecurityLevel::TC128,
-            })
-            .compile()
-            .unwrap()
-    };
-    static ref RUNTIME: Runtime = Runtime::new(FHE_APP.params()).unwrap();
-}
+pub static FHE_APP: Lazy<Application> = Lazy::new(|| {
+    Compiler::new()
+        .fhe_program(add)
+        .fhe_program(add_plain)
+        .fhe_program(subtract)
+        .fhe_program(subtract_plain)
+        .fhe_program(multiply)
+        .with_params(&SUNSCREEN_PARAMS)
+        .compile()
+        .unwrap()
+});
 
 // For people making other contracts, allow passing in the program itself
 // Will require on the fly runtime
@@ -169,7 +160,7 @@ fn fhe_enc_zero(input: &[u8], gas_limit: u64) -> PrecompileResult {
         return Err(Error::OutOfGas);
     }
     let pubk = bincode::deserialize(input).map_err(|_| FheErr::InvalidEncoding)?;
-    let zero = RUNTIME
+    let zero = SUNSCREEN_RUNTIME
         .encrypt(Signed::from(0), &pubk)
         .map_err(FheErr::SunscreenError)?;
 
@@ -287,7 +278,7 @@ fn run(
     b: impl Into<FheProgramInput>,
     public_key: PublicKey,
 ) -> Result<Ciphertext, RuntimeError> {
-    RUNTIME
+    SUNSCREEN_RUNTIME
         .run(
             FHE_APP.get_program(program).unwrap(),
             vec![a.into(), b.into()],
