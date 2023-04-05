@@ -324,26 +324,26 @@ mod tests {
 
     #[test]
     fn fhe_add_works() -> Result<(), RuntimeError> {
-        let (public_key, private_key) = RUNTIME.generate_keys()?;
+        let (public_key, private_key) = SUNSCREEN_RUNTIME.generate_keys()?;
 
-        let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
-        let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
+        let a = SUNSCREEN_RUNTIME.encrypt(Signed::from(16), &public_key)?;
+        let b = SUNSCREEN_RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
         let result = run(add, a, b, public_key)?;
-        let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
+        let c: Signed = SUNSCREEN_RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 20_i64);
         Ok(())
     }
 
     #[test]
     fn fhe_multiply_works() -> Result<(), RuntimeError> {
-        let (public_key, private_key) = RUNTIME.generate_keys()?;
+        let (public_key, private_key) = SUNSCREEN_RUNTIME.generate_keys()?;
 
-        let a = RUNTIME.encrypt(Signed::from(16), &public_key)?;
-        let b = RUNTIME.encrypt(Signed::from(4), &public_key)?;
+        let a = SUNSCREEN_RUNTIME.encrypt(Signed::from(16), &public_key)?;
+        let b = SUNSCREEN_RUNTIME.encrypt(Signed::from(4), &public_key)?;
 
         let result = run(multiply, a, b, public_key)?;
-        let c: Signed = RUNTIME.decrypt(&result, &private_key)?;
+        let c: Signed = SUNSCREEN_RUNTIME.decrypt(&result, &private_key)?;
         assert_eq!(<Signed as Into<i64>>::into(c), 64_i64);
         Ok(())
     }
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn precompile_fhe_enc_zero_works() -> Result<(), RuntimeError> {
-        let (public_key, private_key) = RUNTIME.generate_keys()?;
+        let (public_key, private_key) = SUNSCREEN_RUNTIME.generate_keys()?;
 
         // Encode pubk
         let pubk_enc = bincode::serialize(&public_key).unwrap();
@@ -399,7 +399,7 @@ mod tests {
         // decode it
         let c_encrypted = bincode::deserialize(&output).unwrap();
         // decrypt it
-        let c: Signed = RUNTIME.decrypt(&c_encrypted, &private_key)?;
+        let c: Signed = SUNSCREEN_RUNTIME.decrypt(&c_encrypted, &private_key)?;
 
         assert_eq!(0, <Signed as Into<i64>>::into(c));
         Ok(())
@@ -415,11 +415,11 @@ mod tests {
     where
         F: Fn(&[u8], u64) -> PrecompileResult,
     {
-        let (public_key, private_key) = RUNTIME.generate_keys()?;
+        let (public_key, private_key) = SUNSCREEN_RUNTIME.generate_keys()?;
 
         // Encrypt values
-        let a_encrypted = RUNTIME.encrypt(Signed::from(a), &public_key)?;
-        let b_encrypted = RUNTIME.encrypt(Signed::from(b), &public_key)?;
+        let a_encrypted = SUNSCREEN_RUNTIME.encrypt(Signed::from(a), &public_key)?;
+        let b_encrypted = SUNSCREEN_RUNTIME.encrypt(Signed::from(b), &public_key)?;
 
         // Encode values
         let pubk_enc = bincode::serialize(&public_key).unwrap();
@@ -445,7 +445,7 @@ mod tests {
         // decode it
         let c_encrypted = bincode::deserialize(&output).unwrap();
         // decrypt it
-        let c: Signed = RUNTIME.decrypt(&c_encrypted, &private_key)?;
+        let c: Signed = SUNSCREEN_RUNTIME.decrypt(&c_encrypted, &private_key)?;
 
         assert_eq!(cost, op_cost);
         assert_eq!(expected, <Signed as Into<i64>>::into(c));
@@ -462,10 +462,10 @@ mod tests {
     where
         F: Fn(&[u8], u64) -> PrecompileResult,
     {
-        let (public_key, private_key) = RUNTIME.generate_keys()?;
+        let (public_key, private_key) = SUNSCREEN_RUNTIME.generate_keys()?;
 
         // Encrypt a
-        let a_encrypted = RUNTIME.encrypt(Signed::from(a), &public_key)?;
+        let a_encrypted = SUNSCREEN_RUNTIME.encrypt(Signed::from(a), &public_key)?;
 
         // Encode values
         let pubk_enc = bincode::serialize(&public_key).unwrap();
@@ -484,7 +484,7 @@ mod tests {
         // decode it
         let c_encrypted = bincode::deserialize(&output).unwrap();
         // decrypt it
-        let c: Signed = RUNTIME.decrypt(&c_encrypted, &private_key)?;
+        let c: Signed = SUNSCREEN_RUNTIME.decrypt(&c_encrypted, &private_key)?;
 
         assert_eq!(expected, <Signed as Into<i64>>::into(c));
         Ok(())
