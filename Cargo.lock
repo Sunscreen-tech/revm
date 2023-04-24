@@ -602,6 +602,7 @@ dependencies = [
 [[package]]
 name = "fhe_precompiles"
 version = "0.1.0"
+source = "git+https://github.com/Sunscreen-tech/fhe_precompiles?rev=3cb72a7#3cb72a759b313f8c6eb0f48d4a6351a4c276f339"
 dependencies = [
  "bincode",
  "libc",
