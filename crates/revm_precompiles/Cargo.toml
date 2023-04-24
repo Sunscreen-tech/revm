@@ -24,7 +24,7 @@ sha3 = { version = "0.10.4", default-features = false }
 bincode = "1.3.3"
 sunscreen = "0.7.0"
 # this will get pinned via git soon
-sunscreen_params = { path = "../../../../crates/sunscreen_params" }
+fhe_precompiles = { git = "https://github.com/Sunscreen-tech/fhe_precompiles", rev = "3cb72a7" }
 
 [dev-dependencies]
 hex = "0.4"

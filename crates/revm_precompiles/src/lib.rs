@@ -169,7 +169,7 @@ impl Precompiles {
                     fhe::FHE_ADD_PLAIN,
                     fhe::FHE_SUBTRACT_PLAIN,
                     fhe::FHE_MULTIPLY,
-                    fhe::FHE_ENC_ZERO,
+                    fhe::FHE_ENCRYPT_ZERO,
                     // EIP-2565: ModExp Gas Cost.
                     modexp::BERLIN,
                 ]
