@@ -41,28 +41,28 @@ where
 }
 
 pub const FHE_ADD: (Address, Precompile) = (
-    crate::make_address(0, 205), // 0xcd
+    crate::make_address(0, 205),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(|x| FHE.add(x), input, COST_FHE_ADD, gas_limit)
     }),
 );
 
 pub const FHE_ADD_PLAIN: (Address, Precompile) = (
-    crate::make_address(0, 206), // 0xcd
+    crate::make_address(0, 206),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(|x| FHE.add_plain(x), input, COST_FHE_ADD_PLAIN, gas_limit)
     }),
 );
 
 pub const FHE_SUBTRACT: (Address, Precompile) = (
-    crate::make_address(0, 207), // 0xcd
+    crate::make_address(0, 207),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(|x| FHE.subtract(x), input, COST_FHE_SUBTRACT, gas_limit)
     }),
 );
 
 pub const FHE_SUBTRACT_PLAIN: (Address, Precompile) = (
-    crate::make_address(0, 208), // 0xcd
+    crate::make_address(0, 208),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(
             |x| FHE.subtract_plain(x),
@@ -74,14 +74,14 @@ pub const FHE_SUBTRACT_PLAIN: (Address, Precompile) = (
 );
 
 pub const FHE_MULTIPLY: (Address, Precompile) = (
-    crate::make_address(0, 209), // 0xcd
+    crate::make_address(0, 209),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(|x| FHE.multiply(x), input, COST_FHE_MULTIPLY, gas_limit)
     }),
 );
 
 pub const FHE_ENCRYPT_ZERO: (Address, Precompile) = (
-    crate::make_address(0, 210), // 0xcd
+    crate::make_address(0, 210),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(
             |x| FHE.encrypt_zero(x),
