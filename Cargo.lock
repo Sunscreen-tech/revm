@@ -585,9 +585,10 @@ dependencies = [
 [[package]]
 name = "fhe_precompiles"
 version = "0.1.0"
-source = "git+https://github.com/Sunscreen-tech/fhe_precompiles?rev=32d3d24ec256d6f8d76b92a4e0f330d641faae9f#32d3d24ec256d6f8d76b92a4e0f330d641faae9f"
+source = "git+https://github.com/Sunscreen-tech/fhe_precompiles?rev=6e29c24413a4ae2c4962b941a0280c51adb495bb#6e29c24413a4ae2c4962b941a0280c51adb495bb"
 dependencies = [
  "bincode",
+ "crypto-bigint",
  "libc",
  "once_cell",
  "paste",

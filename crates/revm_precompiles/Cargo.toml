@@ -21,7 +21,7 @@ secp256k1 = { version = "0.24.0", default-features = false, features = ["alloc",
 sha2 = { version = "0.10.5", default-features = false }
 sha3 = { version = "0.10.4", default-features = false }
 
-fhe_precompiles = { git = "https://github.com/Sunscreen-tech/fhe_precompiles", rev = "32d3d24ec256d6f8d76b92a4e0f330d641faae9f" }
+fhe_precompiles = { git = "https://github.com/Sunscreen-tech/fhe_precompiles", rev = "6e29c24413a4ae2c4962b941a0280c51adb495bb" }
 
 [dev-dependencies]
 hex = "0.4"
