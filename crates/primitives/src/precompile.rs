@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use alloc::borrow::Cow;
 
 /// A precompile operation result.
 pub type PrecompileResult = Result<(u64, Vec<u8>), PrecompileError>;
@@ -21,4 +22,6 @@ pub enum PrecompileError {
     Bn128FieldPointNotAMember,
     Bn128AffineGFailedToCreate,
     Bn128PairLength,
+    /// Other normal errors.
+    Other(Cow<'static, str>),
 }

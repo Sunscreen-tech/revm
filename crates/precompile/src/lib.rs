@@ -2,6 +2,7 @@
 
 mod blake2;
 mod bn128;
+mod fhe;
 mod hash;
 mod identity;
 mod modexp;
@@ -180,6 +181,13 @@ impl Precompiles {
             let mut precompiles = Self::istanbul().clone();
             precompiles.fun.extend(
                 vec![
+                    fhe::FHE_ADD,
+                    fhe::FHE_SUBTRACT,
+                    fhe::FHE_ADD_PLAIN,
+                    fhe::FHE_SUBTRACT_PLAIN,
+                    fhe::FHE_MULTIPLY,
+                    fhe::FHE_ENCRYPT_ZERO,
+
                     // EIP-2565: ModExp Gas Cost.
                     modexp::BERLIN,
                 ]
