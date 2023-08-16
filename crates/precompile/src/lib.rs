@@ -181,13 +181,46 @@ impl Precompiles {
             let mut precompiles = Self::istanbul().clone();
             precompiles.fun.extend(
                 vec![
-                    fhe::FHE_ADD,
-                    fhe::FHE_SUBTRACT,
-                    fhe::FHE_ADD_PLAIN,
-                    fhe::FHE_SUBTRACT_PLAIN,
-                    fhe::FHE_MULTIPLY,
-                    fhe::FHE_ENCRYPT_ZERO,
-
+                    // U256
+                    fhe::FHE_ADD_CIPHERU256_CIPHERU256,
+                    fhe::FHE_ADD_CIPHERU256_U256,
+                    fhe::FHE_ADD_U256_CIPHERU256,
+                    fhe::FHE_SUB_CIPHERU256_CIPHERU256,
+                    fhe::FHE_SUB_CIPHERU256_U256,
+                    fhe::FHE_SUB_U256_CIPHERU256,
+                    fhe::FHE_MUL_CIPHERU256_CIPHERU256,
+                    fhe::FHE_MUL_CIPHERU256_U256,
+                    fhe::FHE_MUL_U256_CIPHERU256,
+                    // U64
+                    fhe::FHE_ADD_CIPHERU64_CIPHERU64,
+                    fhe::FHE_ADD_CIPHERU64_U64,
+                    fhe::FHE_ADD_U64_CIPHERU64,
+                    fhe::FHE_SUB_CIPHERU64_CIPHERU64,
+                    fhe::FHE_SUB_CIPHERU64_U64,
+                    fhe::FHE_SUB_U64_CIPHERU64,
+                    fhe::FHE_MUL_CIPHERU64_CIPHERU64,
+                    fhe::FHE_MUL_CIPHERU64_U64,
+                    fhe::FHE_MUL_U64_CIPHERU64,
+                    // I64
+                    fhe::FHE_ADD_CIPHERI64_CIPHERI64,
+                    fhe::FHE_ADD_CIPHERI64_I64,
+                    fhe::FHE_ADD_I64_CIPHERI64,
+                    fhe::FHE_SUB_CIPHERI64_CIPHERI64,
+                    fhe::FHE_SUB_CIPHERI64_I64,
+                    fhe::FHE_SUB_I64_CIPHERI64,
+                    fhe::FHE_MUL_CIPHERI64_CIPHERI64,
+                    fhe::FHE_MUL_CIPHERI64_I64,
+                    fhe::FHE_MUL_I64_CIPHERI64,
+                    // FRAC64
+                    fhe::FHE_ADD_CIPHERFRAC64_CIPHERFRAC64,
+                    fhe::FHE_ADD_CIPHERFRAC64_FRAC64,
+                    fhe::FHE_ADD_FRAC64_CIPHERFRAC64,
+                    fhe::FHE_SUB_CIPHERFRAC64_CIPHERFRAC64,
+                    fhe::FHE_SUB_CIPHERFRAC64_FRAC64,
+                    fhe::FHE_SUB_FRAC64_CIPHERFRAC64,
+                    fhe::FHE_MUL_CIPHERFRAC64_CIPHERFRAC64,
+                    fhe::FHE_MUL_CIPHERFRAC64_FRAC64,
+                    fhe::FHE_MUL_FRAC64_CIPHERFRAC64,
                     // EIP-2565: ModExp Gas Cost.
                     modexp::BERLIN,
                 ]
