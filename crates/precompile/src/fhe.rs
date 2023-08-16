@@ -22,7 +22,7 @@ pub const COST_FHE_ADD_PLAIN: u64 = 200;
 pub const COST_FHE_SUB: u64 = 200;
 pub const COST_FHE_SUB_PLAIN: u64 = 200;
 pub const COST_FHE_MUL: u64 = 1000;
-pub const COST_FHE_MUL_PLAIN: u64 = 1000;
+pub const COST_FHE_MUL_PLAIN: u64 = 200;
 
 fn to_error(value: FheError) -> Error {
     match value {
