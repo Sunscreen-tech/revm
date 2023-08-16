@@ -1,18 +1,28 @@
+use crate::u64_to_b160;
 use crate::{Error, PrecompileAddress};
 use crate::{Precompile, PrecompileResult};
-use crate::u64_to_b160;
 
 use alloc::vec::Vec;
 
 use fhe_precompiles::testnet::one::FHE;
 use fhe_precompiles::FheError;
 
+pub const FHE_BASE_ADDRESS: u64 = 0xF0_00_00_00;
+pub const FHE_U256_ADDRESS: u64 = 0x00_00_00_00;
+pub const FHE_U64_ADDRESS: u64 = 0x00_00_01_00;
+pub const FHE_I64_ADDRESS: u64 = 0x00_00_02_00;
+pub const FHE_FRAC64_ADDRESS: u64 = 0x00_00_03_00;
+
+pub const FHE_ADD_ADDRESS: u64 = 0x00;
+pub const FHE_SUB_ADDRESS: u64 = 0x10;
+pub const FHE_MUL_ADDRESS: u64 = 0x20;
+
 pub const COST_FHE_ADD: u64 = 200;
 pub const COST_FHE_ADD_PLAIN: u64 = 200;
-pub const COST_FHE_SUBTRACT: u64 = 200;
-pub const COST_FHE_SUBTRACT_PLAIN: u64 = 200;
-pub const COST_FHE_MULTIPLY: u64 = 1000;
-pub const COST_FHE_ENCRYPT_ZERO: u64 = 100;
+pub const COST_FHE_SUB: u64 = 200;
+pub const COST_FHE_SUB_PLAIN: u64 = 200;
+pub const COST_FHE_MUL: u64 = 1000;
+pub const COST_FHE_MUL_PLAIN: u64 = 200;
 
 fn to_error(value: FheError) -> Error {
     match value {
@@ -22,9 +32,7 @@ fn to_error(value: FheError) -> Error {
         }
         FheError::InvalidEncoding => Error::Other("Invalid bincode encoding".into()),
         FheError::Overflow => Error::Other("i64 overflow".into()),
-        FheError::SunscreenError(e) => {
-            Error::Other(format!("Sunscreen error: {:?}", e).into())
-        }
+        FheError::SunscreenError(e) => Error::Other(format!("Sunscreen error: {:?}", e).into()),
     }
 }
 
@@ -36,58 +44,452 @@ where
         return Err(Error::OutOfGas);
     }
 
-    f(input)
-        .map(|x| (op_cost, x))
-        .map_err(|e| to_error(e))
+    f(input).map(|x| (op_cost, x)).map_err(|e| to_error(e))
 }
 
-pub const FHE_ADD: PrecompileAddress = PrecompileAddress(
-    u64_to_b160(0xF00),
-    Precompile::Custom(|input, gas_limit| {
-        to_precompile(|x| FHE.add(x), input, COST_FHE_ADD, gas_limit)
-    }),
-);
+/**************************************************************************
+ * U256
+ *************************************************************************/
 
-pub const FHE_ADD_PLAIN: PrecompileAddress = PrecompileAddress(
-    u64_to_b160(0xF01),
-    Precompile::Custom(|input, gas_limit| {
-        to_precompile(|x| FHE.add_plain(x), input, COST_FHE_ADD_PLAIN, gas_limit)
-    }),
-);
-
-pub const FHE_SUBTRACT: PrecompileAddress = PrecompileAddress(
-    u64_to_b160(0xF02),
-    Precompile::Custom(|input, gas_limit| {
-        to_precompile(|x| FHE.subtract(x), input, COST_FHE_SUBTRACT, gas_limit)
-    }),
-);
-
-pub const FHE_SUBTRACT_PLAIN: PrecompileAddress = PrecompileAddress(
-    u64_to_b160(0xF03),
+pub const FHE_ADD_CIPHERU256_CIPHERU256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_ADD_ADDRESS + 0x00),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(
-            |x| FHE.subtract_plain(x),
+            |x| FHE.add_cipheru256_cipheru256(x),
             input,
-            COST_FHE_SUBTRACT_PLAIN,
+            COST_FHE_ADD,
             gas_limit,
         )
     }),
 );
 
-pub const FHE_MULTIPLY: PrecompileAddress = PrecompileAddress(
-    u64_to_b160(0xF04),
+pub const FHE_ADD_CIPHERU256_U256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_ADD_ADDRESS + 0x01),
     Precompile::Custom(|input, gas_limit| {
-        to_precompile(|x| FHE.multiply(x), input, COST_FHE_MULTIPLY, gas_limit)
+        to_precompile(
+            |x| FHE.add_cipheru256_u256(x),
+            input,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
     }),
 );
 
-pub const FHE_ENCRYPT_ZERO: PrecompileAddress = PrecompileAddress(
-    u64_to_b160(0xF10),
+pub const FHE_ADD_U256_CIPHERU256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_ADD_ADDRESS + 0x02),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(
-            |x| FHE.encrypt_zero(x),
+            |x| FHE.add_u256_cipheru256(x),
             input,
-            COST_FHE_ENCRYPT_ZERO,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERU256_CIPHERU256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_SUB_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipheru256_cipheru256(x),
+            input,
+            COST_FHE_SUB,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERU256_U256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_SUB_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipheru256_u256(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_U256_CIPHERU256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_SUB_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_u256_cipheru256(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERU256_CIPHERU256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_MUL_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipheru256_cipheru256(x),
+            input,
+            COST_FHE_MUL,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERU256_U256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_MUL_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipheru256_u256(x),
+            input,
+            COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_U256_CIPHERU256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U256_ADDRESS + FHE_MUL_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_u256_cipheru256(x),
+            input,
+            COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+/**************************************************************************
+ * U64
+ *************************************************************************/
+
+pub const FHE_ADD_CIPHERU64_CIPHERU64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_ADD_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_cipheru64_cipheru64(x),
+            input,
+            COST_FHE_ADD,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_ADD_CIPHERU64_U64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_ADD_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_cipheru64_u64(x),
+            input,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_ADD_U64_CIPHERU64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_ADD_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_u64_cipheru64(x),
+            input,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERU64_CIPHERU64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_SUB_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipheru64_cipheru64(x),
+            input,
+            COST_FHE_SUB,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERU64_U64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_SUB_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipheru64_u64(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_U64_CIPHERU64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_SUB_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_u64_cipheru64(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERU64_CIPHERU64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_MUL_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipheru64_cipheru64(x),
+            input,
+            COST_FHE_MUL,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERU64_U64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_MUL_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipheru64_u64(x),
+            input,
+            COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_U64_CIPHERU64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_U64_ADDRESS + FHE_MUL_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_u64_cipheru64(x),
+            input,
+            COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+/**************************************************************************
+ * I64
+ *************************************************************************/
+
+pub const FHE_ADD_CIPHERI64_CIPHERI64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_ADD_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_cipheri64_cipheri64(x),
+            input,
+            COST_FHE_ADD,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_ADD_CIPHERI64_I64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_ADD_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_cipheri64_i64(x),
+            input,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_ADD_I64_CIPHERI64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_ADD_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_i64_cipheri64(x),
+            input,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERI64_CIPHERI64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_SUB_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipheri64_cipheri64(x),
+            input,
+            COST_FHE_SUB,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERI64_I64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_SUB_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipheri64_i64(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_I64_CIPHERI64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_SUB_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_i64_cipheri64(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERI64_CIPHERI64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_MUL_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipheri64_cipheri64(x),
+            input,
+            COST_FHE_MUL,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERI64_I64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_MUL_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipheri64_i64(x),
+            input,
+            COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_I64_CIPHERI64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_I64_ADDRESS + FHE_MUL_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_i64_cipheri64(x),
+            input,
+            COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+/**************************************************************************
+ * FRAC64
+ *************************************************************************/
+
+pub const FHE_ADD_CIPHERFRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_ADD_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_cipherfrac64_cipherfrac64(x),
+            input,
+            COST_FHE_ADD,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_ADD_CIPHERFRAC64_FRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_ADD_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_cipherfrac64_frac64(x),
+            input,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_ADD_FRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_ADD_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.add_frac64_cipherfrac64(x),
+            input,
+            COST_FHE_ADD_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERFRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_SUB_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipherfrac64_cipherfrac64(x),
+            input,
+            COST_FHE_SUB,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_CIPHERFRAC64_FRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_SUB_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_cipherfrac64_frac64(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_SUB_FRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_SUB_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.sub_frac64_cipherfrac64(x),
+            input,
+            COST_FHE_SUB_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERFRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_MUL_ADDRESS + 0x00),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipherfrac64_cipherfrac64(x),
+            input,
+            COST_FHE_MUL,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_CIPHERFRAC64_FRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_MUL_ADDRESS + 0x01),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_cipherfrac64_frac64(x),
+            input,
+            COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_MUL_FRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_FRAC64_ADDRESS + FHE_MUL_ADDRESS + 0x02),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.mul_frac64_cipherfrac64(x),
+            input,
+            COST_FHE_MUL_PLAIN,
             gas_limit,
         )
     }),
