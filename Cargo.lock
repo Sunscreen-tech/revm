@@ -870,7 +870,7 @@ dependencies = [
 [[package]]
 name = "emsdk"
 version = "0.1.1"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "fs_extra",
  "reqwest",
@@ -1161,13 +1161,13 @@ dependencies = [
 [[package]]
 name = "fhe_precompiles"
 version = "0.1.0"
-source = "git+https://github.com/Sunscreen-tech/fhe_precompiles?rev=c3a2c184eb8ef7a136cc79f9e43567025d431be8#c3a2c184eb8ef7a136cc79f9e43567025d431be8"
 dependencies = [
  "bincode",
  "crypto-bigint",
  "libc",
  "once_cell",
  "paste",
+ "sha2 0.10.7",
  "sunscreen",
 ]
 
@@ -2961,7 +2961,7 @@ dependencies = [
 [[package]]
 name = "seal_fhe"
 version = "0.7.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "bindgen",
  "cmake",
@@ -3320,7 +3320,7 @@ checksum = "734676eb262c623cec13c3155096e08d1f8f29adce39ba17948b18dad1e54142"
 [[package]]
 name = "sunscreen"
 version = "0.7.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "bumpalo",
  "crypto-bigint",
@@ -3344,7 +3344,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_backend"
 version = "0.7.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "crossbeam",
  "env_logger",
@@ -3360,7 +3360,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_bulletproofs"
 version = "4.0.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "byteorder",
  "clear_on_drop",
@@ -3379,7 +3379,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_compiler_common"
 version = "0.7.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "petgraph",
  "proc-macro2 1.0.66",
@@ -3394,7 +3394,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_compiler_macros"
 version = "0.7.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "proc-macro2 1.0.66",
  "quote 1.0.33",
@@ -3406,7 +3406,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_curve25519"
 version = "4.1.1"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "byteorder",
  "digest 0.9.0",
@@ -3419,7 +3419,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_fhe_program"
 version = "0.7.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "petgraph",
  "seal_fhe",
@@ -3432,7 +3432,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_runtime"
 version = "0.7.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "bincode",
  "crossbeam",
@@ -3454,7 +3454,7 @@ dependencies = [
 [[package]]
 name = "sunscreen_zkp_backend"
 version = "0.1.0"
-source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=4018eab87de46718e05ab9400873c338671b9f83#4018eab87de46718e05ab9400873c338671b9f83"
+source = "git+https://github.com/Sunscreen-tech/Sunscreen?rev=e90c11910cf6651a6d56bceb61d3f935cc7a1674#e90c11910cf6651a6d56bceb61d3f935cc7a1674"
 dependencies = [
  "bumpalo",
  "crypto-bigint",
