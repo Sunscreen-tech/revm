@@ -17,12 +17,21 @@ pub const FHE_ADD_ADDRESS: u64 = 0x00;
 pub const FHE_SUB_ADDRESS: u64 = 0x10;
 pub const FHE_MUL_ADDRESS: u64 = 0x20;
 
+pub const FHE_NETWORK_API_ADDRESS: u64 = 0x01_00_00_00;
+pub const FHE_NETWORK_KEY_ADDRESS: u64 = 0x00_00_00_00;
+pub const FHE_ENCRYPT_ADDRESS: u64 = 0x00_00_00_10;
+pub const FHE_REENCRYPT_ADDRESS: u64 = 0x00_00_00_20;
+
 pub const COST_FHE_ADD: u64 = 200;
 pub const COST_FHE_ADD_PLAIN: u64 = 200;
 pub const COST_FHE_SUB: u64 = 200;
 pub const COST_FHE_SUB_PLAIN: u64 = 200;
 pub const COST_FHE_MUL: u64 = 1000;
 pub const COST_FHE_MUL_PLAIN: u64 = 200;
+
+pub const COST_FHE_NETWORK_KEY: u64 = 0;
+pub const COST_FHE_ENCRYPT: u64 = 1000;
+pub const COST_FHE_REENCRYPT: u64 = 2000;
 
 fn to_error(value: FheError) -> Error {
     match value {
@@ -32,6 +41,8 @@ fn to_error(value: FheError) -> Error {
         }
         FheError::InvalidEncoding => Error::Other("Invalid bincode encoding".into()),
         FheError::Overflow => Error::Other("i64 overflow".into()),
+        FheError::FailedDecryption => Error::Other("Failed decryption".into()),
+        FheError::FailedEncryption => Error::Other("Failed Encryption".into()),
         FheError::SunscreenError(e) => Error::Other(format!("Sunscreen error: {:?}", e).into()),
     }
 }
@@ -44,7 +55,7 @@ where
         return Err(Error::OutOfGas);
     }
 
-    f(input).map(|x| (op_cost, x)).map_err(|e| to_error(e))
+    f(input).map(|x| (op_cost, x)).map_err(to_error)
 }
 
 /**************************************************************************
@@ -490,6 +501,119 @@ pub const FHE_MUL_FRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
             |x| FHE.mul_frac64_cipherfrac64(x),
             input,
             COST_FHE_MUL_PLAIN,
+            gas_limit,
+        )
+    }),
+);
+
+/**************************************************************************
+ * Network API
+ *************************************************************************/
+
+pub const FHE_NETWORK_PUBLIC_KEY: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_NETWORK_KEY_ADDRESS),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.public_key_bytes(x),
+            input,
+            COST_FHE_NETWORK_KEY,
+            gas_limit,
+        )
+    }),
+);
+
+// Encrypt ////////////////////////////////////////////////////////////////
+
+pub const FHE_ENCRYPT_U256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_U256_ADDRESS + FHE_ENCRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(|x| FHE.encrypt_u256(x), input, COST_FHE_ENCRYPT, gas_limit)
+    }),
+);
+
+pub const FHE_ENCRYPT_U64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_U64_ADDRESS + FHE_ENCRYPT_ADDRESS),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(|x| FHE.encrypt_u64(x), input, COST_FHE_ENCRYPT, gas_limit)
+    }),
+);
+
+pub const FHE_ENCRYPT_I64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_I64_ADDRESS + FHE_ENCRYPT_ADDRESS),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(|x| FHE.encrypt_i64(x), input, COST_FHE_ENCRYPT, gas_limit)
+    }),
+);
+
+pub const FHE_ENCRYPT_FRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_FRAC64_ADDRESS + FHE_ENCRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.encrypt_frac64(x),
+            input,
+            COST_FHE_ENCRYPT,
+            gas_limit,
+        )
+    }),
+);
+
+// Reencrypt //////////////////////////////////////////////////////////////
+
+pub const FHE_REENCRYPT_U256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_U256_ADDRESS + FHE_REENCRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.reencrypt_u256(x),
+            input,
+            COST_FHE_REENCRYPT,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_REENCRYPT_U64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_U64_ADDRESS + FHE_REENCRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.reencrypt_u64(x),
+            input,
+            COST_FHE_REENCRYPT,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_REENCRYPT_I64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_I64_ADDRESS + FHE_REENCRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.reencrypt_i64(x),
+            input,
+            COST_FHE_REENCRYPT,
+            gas_limit,
+        )
+    }),
+);
+
+pub const FHE_REENCRYPT_FRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_FRAC64_ADDRESS + FHE_REENCRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.reencrypt_frac64(x),
+            input,
+            COST_FHE_REENCRYPT,
             gas_limit,
         )
     }),
