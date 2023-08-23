@@ -18,8 +18,9 @@ pub const FHE_SUB_ADDRESS: u64 = 0x10;
 pub const FHE_MUL_ADDRESS: u64 = 0x20;
 
 pub const FHE_NETWORK_API_ADDRESS: u64 = 0x01_00_00_00;
-pub const FHE_ENCRYPT_ADDRESS: u64 = 0x00_00_00_00;
-pub const FHE_REENCRYPT_ADDRESS: u64 = 0x00_00_00_10;
+pub const FHE_NETWORK_KEY_ADDRESS: u64 = 0x00_00_00_00;
+pub const FHE_ENCRYPT_ADDRESS: u64 = 0x00_00_00_10;
+pub const FHE_REENCRYPT_ADDRESS: u64 = 0x00_00_00_20;
 
 pub const COST_FHE_ADD: u64 = 200;
 pub const COST_FHE_ADD_PLAIN: u64 = 200;
@@ -510,7 +511,7 @@ pub const FHE_MUL_FRAC64_CIPHERFRAC64: PrecompileAddress = PrecompileAddress(
  *************************************************************************/
 
 pub const FHE_NETWORK_PUBLIC_KEY: PrecompileAddress = PrecompileAddress(
-    u64_to_b160(FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS),
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_NETWORK_KEY_ADDRESS),
     Precompile::Custom(|input, gas_limit| {
         to_precompile(
             |x| FHE.public_key_bytes(x),
