@@ -1161,6 +1161,7 @@ dependencies = [
 [[package]]
 name = "fhe_precompiles"
 version = "0.1.0"
+source = "git+https://github.com/Sunscreen-tech/fhe_precompiles?rev=5f365a7d47a779dcf5c8fd731f1b0c09bda440ea#5f365a7d47a779dcf5c8fd731f1b0c09bda440ea"
 dependencies = [
  "bincode",
  "crypto-bigint",
