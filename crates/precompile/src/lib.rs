@@ -229,6 +229,8 @@ impl Precompiles {
                     fhe::FHE_MUL_CIPHERFRAC64_CIPHERFRAC64,
                     fhe::FHE_MUL_CIPHERFRAC64_FRAC64,
                     fhe::FHE_MUL_FRAC64_CIPHERFRAC64,
+                    // Netowrk Public Key
+                    fhe::FHE_NETWORK_PUBLIC_KEY,
                     // EIP-2565: ModExp Gas Cost.
                     modexp::BERLIN,
                 ]
