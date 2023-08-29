@@ -21,6 +21,7 @@ pub const FHE_NETWORK_API_ADDRESS: u64 = 0x01_00_00_00;
 pub const FHE_NETWORK_KEY_ADDRESS: u64 = 0x00_00_00_00;
 pub const FHE_ENCRYPT_ADDRESS: u64 = 0x00_00_00_10;
 pub const FHE_REENCRYPT_ADDRESS: u64 = 0x00_00_00_20;
+pub const FHE_DECRYPT_ADDRESS: u64 = 0x00_00_00_30;
 
 pub const COST_FHE_ADD: u64 = 200;
 pub const COST_FHE_ADD_PLAIN: u64 = 200;
@@ -32,6 +33,7 @@ pub const COST_FHE_MUL_PLAIN: u64 = 200;
 pub const COST_FHE_NETWORK_KEY: u64 = 0;
 pub const COST_FHE_ENCRYPT: u64 = 1000;
 pub const COST_FHE_REENCRYPT: u64 = 2000;
+pub const COST_FHE_DECRYPT: u64 = 1000;
 
 fn to_error(value: FheError) -> Error {
     match value {
@@ -614,6 +616,45 @@ pub const FHE_REENCRYPT_FRAC64: PrecompileAddress = PrecompileAddress(
             |x| FHE.reencrypt_frac64(x),
             input,
             COST_FHE_REENCRYPT,
+            gas_limit,
+        )
+    }),
+);
+
+// Decrypt ////////////////////////////////////////////////////////////////
+
+pub const FHE_DECRYPT_U256: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_U256_ADDRESS + FHE_DECRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(|x| FHE.decrypt_u256(x), input, COST_FHE_DECRYPT, gas_limit)
+    }),
+);
+
+pub const FHE_DECRYPT_U64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_U64_ADDRESS + FHE_DECRYPT_ADDRESS),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(|x| FHE.decrypt_u64(x), input, COST_FHE_DECRYPT, gas_limit)
+    }),
+);
+
+pub const FHE_DECRYPT_I64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_I64_ADDRESS + FHE_DECRYPT_ADDRESS),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(|x| FHE.decrypt_i64(x), input, COST_FHE_DECRYPT, gas_limit)
+    }),
+);
+
+pub const FHE_DECRYPT_FRAC64: PrecompileAddress = PrecompileAddress(
+    u64_to_b160(
+        FHE_BASE_ADDRESS + FHE_NETWORK_API_ADDRESS + FHE_FRAC64_ADDRESS + FHE_DECRYPT_ADDRESS,
+    ),
+    Precompile::Custom(|input, gas_limit| {
+        to_precompile(
+            |x| FHE.decrypt_frac64(x),
+            input,
+            COST_FHE_DECRYPT,
             gas_limit,
         )
     }),

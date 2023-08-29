@@ -184,6 +184,7 @@ impl Precompiles {
                     // U256
                     fhe::FHE_ENCRYPT_U256,
                     fhe::FHE_REENCRYPT_U256,
+                    fhe::FHE_DECRYPT_U256,
                     fhe::FHE_ADD_CIPHERU256_CIPHERU256,
                     fhe::FHE_ADD_CIPHERU256_U256,
                     fhe::FHE_ADD_U256_CIPHERU256,
@@ -196,6 +197,7 @@ impl Precompiles {
                     // U64
                     fhe::FHE_ENCRYPT_U64,
                     fhe::FHE_REENCRYPT_U64,
+                    fhe::FHE_DECRYPT_U64,
                     fhe::FHE_ADD_CIPHERU64_CIPHERU64,
                     fhe::FHE_ADD_CIPHERU64_U64,
                     fhe::FHE_ADD_U64_CIPHERU64,
@@ -208,6 +210,7 @@ impl Precompiles {
                     // I64
                     fhe::FHE_ENCRYPT_I64,
                     fhe::FHE_REENCRYPT_I64,
+                    fhe::FHE_DECRYPT_I64,
                     fhe::FHE_ADD_CIPHERI64_CIPHERI64,
                     fhe::FHE_ADD_CIPHERI64_I64,
                     fhe::FHE_ADD_I64_CIPHERI64,
@@ -220,6 +223,7 @@ impl Precompiles {
                     // FRAC64
                     fhe::FHE_ENCRYPT_FRAC64,
                     fhe::FHE_REENCRYPT_FRAC64,
+                    fhe::FHE_DECRYPT_FRAC64,
                     fhe::FHE_ADD_CIPHERFRAC64_CIPHERFRAC64,
                     fhe::FHE_ADD_CIPHERFRAC64_FRAC64,
                     fhe::FHE_ADD_FRAC64_CIPHERFRAC64,
