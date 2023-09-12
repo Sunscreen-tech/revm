@@ -727,9 +727,9 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "crypto-bigint"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf4c2f4e1afd912bc40bfd6fed5d9dc1f288e0ba01bfcc835cc5bc3eb13efe15"
+checksum = "740fe28e594155f10cfc383984cbefd529d7396050557148f79cb0f621204124"
 dependencies = [
  "generic-array",
  "rand_core",
@@ -1162,7 +1162,7 @@ dependencies = [
 [[package]]
 name = "fhe_precompiles"
 version = "0.1.0"
-source = "git+https://github.com/Sunscreen-tech/fhe_precompiles#4b8f9c5eeac293745d08cda60dca806589313d67"
+source = "git+https://github.com/Sunscreen-tech/fhe_precompiles#627af05a30d1716b3d428fa6783cfe8d93310571"
 dependencies = [
  "bincode",
  "crypto-bigint",
@@ -2962,9 +2962,9 @@ dependencies = [
 
 [[package]]
 name = "seal_fhe"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e7ad415018f64f3536a3192cbb492098c9920787ea4904906a084f37e78e752"
+checksum = "dc3c40172acf7bb633a063025f2f8c8613350534615156994cb44ef5f2a8f254"
 dependencies = [
  "bindgen",
  "cmake",
@@ -3322,9 +3322,9 @@ checksum = "734676eb262c623cec13c3155096e08d1f8f29adce39ba17948b18dad1e54142"
 
 [[package]]
 name = "sunscreen"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6af3443899ab01bbfd85e909eedb532d718d85de50079a8abcfebcef1fa0a627"
+checksum = "6324d163848d2dea33fa0cf4e00dd6258a8ca67568a27e9a065c978048c77de0"
 dependencies = [
  "bumpalo",
  "crypto-bigint",
@@ -3347,9 +3347,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_backend"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b95bb51a536a0754f832fbc706f6b842586bc6920a83d6de00dd4bef45cfcca"
+checksum = "3c64deb6071793c8ad37afcbf88c838ef9fb5328ac8930dddb09f2de214220b5"
 dependencies = [
  "crossbeam",
  "env_logger",
@@ -3364,9 +3364,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_bulletproofs"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdb7f68d6e9d54de5cb18d37e3ded559defb81ad584996fa4e055c397e7db6fc"
+checksum = "7912d78416cd76df938df8206498118dbbe045536e07e5e1202979a2e91efa01"
 dependencies = [
  "byteorder",
  "clear_on_drop",
@@ -3384,9 +3384,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_compiler_common"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cddc2b6420d9010bfacbf66e11446b3e19d9ebfd39b47d3d238e01a6598b90f2"
+checksum = "50538faa9868c64e2a5c0a680eb86f8cdb4a043c512e0940c0872b80b71e5df2"
 dependencies = [
  "petgraph",
  "proc-macro2 1.0.66",
@@ -3400,9 +3400,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_compiler_macros"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "649524ef429613684bd161e45d24d4b42cb8d37256ffd6cf027b07711f5357ec"
+checksum = "d3924146f8dde34c428202762f93a38e43bbfefe46659f130ae768058bdd2ff7"
 dependencies = [
  "proc-macro2 1.0.66",
  "quote 1.0.33",
@@ -3413,9 +3413,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_curve25519"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4ee677c370bcd6649bba99506f0d99519fe80b9334f4cae7b5469c185c2feae"
+checksum = "0c4447256202156eb3aa8255933b46f4c5556d0dbb64ebb3762e36bfb6535dd8"
 dependencies = [
  "byteorder",
  "digest 0.9.0",
@@ -3427,9 +3427,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_fhe_program"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "393017d7dddfa74337d06ba2909351d79d1c2d61d134be3a30c7ee082366c18c"
+checksum = "77bab154293557b4b022233d96a30ff6a12133beec5220020eb87a18db4bfc9d"
 dependencies = [
  "petgraph",
  "seal_fhe",
@@ -3441,9 +3441,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_runtime"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a2b01ade730f14b6fd790bf1728172ac2a56b4e653d29f4cb763cee2b1407ba"
+checksum = "fe2b0b215b948f93b8aca547b9e5ddff4ea7d5c1263923f8477a1d2189c487fb"
 dependencies = [
  "bincode",
  "crossbeam",
@@ -3464,9 +3464,9 @@ dependencies = [
 
 [[package]]
 name = "sunscreen_zkp_backend"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8f9c4baf95edd1c70de14d57b6946841ea250d535eda178f15c90298d0f45a6"
+checksum = "1ef62b17828a94752949283c411a7ca24c293658ac76458963436608df40f0c3"
 dependencies = [
  "bumpalo",
  "crypto-bigint",
